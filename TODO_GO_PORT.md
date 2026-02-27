@@ -2,8 +2,10 @@
 
 This document outlines the tasks required to port the `playerctl` codebase from C to Go.
 
+> **Note:** This list is dynamic. As work progresses, new tasks discovered should be added, and completed tasks checked off.
+
 ## Project Setup
-- [ ] Initialize Go module (`go mod init github.com/altdesktop/playerctl`)
+- [ ] Initialize Go module (`go mod init github.com/arran4/go-playerctl`)
 - [ ] Set up directory structure (e.g., `cmd/playerctl`, `cmd/playerctld`, `pkg/playerctl`)
 - [ ] Choose a DBus library (e.g., `github.com/godbus/dbus/v5`)
 
