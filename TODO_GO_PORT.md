@@ -89,3 +89,9 @@ This document outlines the tasks required to port the `playerctl` codebase from 
 ## Documentation
 - [ ] Update README with Go installation instructions
 - [ ] Write GoDocs for the library package
+
+## Build, CI/CD, and Release
+- [ ] Cleanup C codebase artifacts (Makefile, meson.build, etc.) once port is complete
+- [ ] Setup GitHub Actions for CI (build and test)
+- [ ] Configure `goreleaser` for creating release artifacts
+- [ ] Create packaging scripts/configs (e.g., for distros, or use `goreleaser` features)
