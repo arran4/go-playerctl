@@ -10,6 +10,8 @@ Playerctl is a command-line utility and library for controlling media players th
 
 Playerctl also comes with a daemon that allows it to act on the currently active media player called `playerctld`.
 
+**Note:** This project is currently being ported to Go. You can track the progress in [TODO_GO_PORT.md](TODO_GO_PORT.md).
+
 ## Using the CLI
 
 ```
