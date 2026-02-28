@@ -57,3 +57,53 @@ func TestSourceString(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePlaybackStatus(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected PlaybackStatus
+		ok       bool
+	}{
+		{"Playing", PlaybackStatusPlaying, true},
+		{"playing", PlaybackStatusPlaying, true},
+		{"Paused", PlaybackStatusPaused, true},
+		{"paused", PlaybackStatusPaused, true},
+		{"Stopped", PlaybackStatusStopped, true},
+		{"stopped", PlaybackStatusStopped, true},
+		{"Unknown", PlaybackStatusStopped, false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			got, ok := ParsePlaybackStatus(test.input)
+			if got != test.expected || ok != test.ok {
+				t.Errorf("ParsePlaybackStatus(%q) = %v, %v, want %v, %v", test.input, got, ok, test.expected, test.ok)
+			}
+		})
+	}
+}
+
+func TestParseLoopStatus(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected LoopStatus
+		ok       bool
+	}{
+		{"None", LoopStatusNone, true},
+		{"none", LoopStatusNone, true},
+		{"Track", LoopStatusTrack, true},
+		{"track", LoopStatusTrack, true},
+		{"Playlist", LoopStatusPlaylist, true},
+		{"playlist", LoopStatusPlaylist, true},
+		{"Unknown", LoopStatusNone, false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			got, ok := ParseLoopStatus(test.input)
+			if got != test.expected || ok != test.ok {
+				t.Errorf("ParseLoopStatus(%q) = %v, %v, want %v, %v", test.input, got, ok, test.expected, test.ok)
+			}
+		})
+	}
+}

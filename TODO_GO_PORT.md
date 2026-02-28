@@ -7,20 +7,20 @@ This document outlines the tasks required to port the `playerctl` codebase from 
 ## Project Setup
 - [x] Initialize Go module (`go mod init github.com/arran4/go-playerctl`)
 - [x] Set up directory structure (e.g., `cmd/playerctl`, `cmd/playerctld`, `pkg/playerctl`)
-- [ ] Choose a DBus library (e.g., `github.com/godbus/dbus/v5`)
+- [x] Choose a DBus library (e.g., `github.com/godbus/dbus/v5`)
 
 ## Core Library (`pkg/playerctl`)
 
 ### Enums and Types (`playerctl-common.h`, `playerctl-enum-types.h`)
-- [ ] Define `PlayerctlPlaybackStatus` enum (Playing, Paused, Stopped)
-- [ ] Define `PlayerctlLoopStatus` enum (None, Track, Playlist)
-- [ ] Define `PlayerctlSource` enum (DBusSession, DBusSystem)
-- [ ] Implement string conversion functions for enums
+- [x] Define `PlayerctlPlaybackStatus` enum (Playing, Paused, Stopped)
+- [x] Define `PlayerctlLoopStatus` enum (None, Track, Playlist)
+- [x] Define `PlayerctlSource` enum (DBusSession, DBusSystem)
+- [x] Implement string conversion functions for enums
 
 ### Player Name Handling (`playerctl-player-name.c`)
-- [ ] Define `PlayerName` struct (name, instance, source)
-- [ ] Implement `PlayerName` comparison functions
-- [ ] Implement `PlayerName` parsing/construction logic
+- [x] Define `PlayerName` struct (name, instance, source)
+- [x] Implement `PlayerName` comparison functions
+- [x] Implement `PlayerName` parsing/construction logic
 
 ### Player Implementation (`playerctl-player.c`)
 - [ ] Define `Player` struct
