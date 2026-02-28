@@ -5,8 +5,8 @@ This document outlines the tasks required to port the `playerctl` codebase from 
 > **Note:** This list is dynamic. As work progresses, new tasks discovered should be added, and completed tasks checked off.
 
 ## Project Setup
-- [ ] Initialize Go module (`go mod init github.com/arran4/go-playerctl`)
-- [ ] Set up directory structure (e.g., `cmd/playerctl`, `cmd/playerctld`, `pkg/playerctl`)
+- [x] Initialize Go module (`go mod init github.com/arran4/go-playerctl`)
+- [x] Set up directory structure (e.g., `cmd/playerctl`, `cmd/playerctld`, `pkg/playerctl`)
 - [ ] Choose a DBus library (e.g., `github.com/godbus/dbus/v5`)
 
 ## Core Library (`pkg/playerctl`)
@@ -93,7 +93,7 @@ This document outlines the tasks required to port the `playerctl` codebase from 
 - [ ] Write GoDocs for the library package
 
 ## Build, CI/CD, and Release
-- [ ] Cleanup C codebase artifacts (Makefile, meson.build, etc.) once port is complete
+- [x] Cleanup C codebase artifacts (Makefile, meson.build, etc.) once port is complete
 - [ ] Setup GitHub Actions for CI (build and test)
 - [ ] Configure `goreleaser` for creating release artifacts
 - [ ] Create packaging scripts/configs (e.g., for distros, or use `goreleaser` features)
