@@ -1,0 +1,4 @@
+vlc.instance123
+spotify
+mpd
+rhythmbox.instance456
