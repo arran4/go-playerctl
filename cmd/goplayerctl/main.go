@@ -192,12 +192,40 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 		}
 		ctx["status"] = status.String()
 	case "metadata":
-		title, err := p.GetTitle()
+		meta, err := p.Metadata()
 		if err != nil {
 			return "", err
 		}
-		artist, _ := p.GetArtist()
-		album, _ := p.GetAlbum()
+
+		var title, artist, album string
+
+		if v, ok := meta["xesam:title"]; ok {
+			if s, ok := v.Value().(string); ok {
+				title = s
+			}
+		}
+		if v, ok := meta["xesam:album"]; ok {
+			if s, ok := v.Value().(string); ok {
+				album = s
+			}
+		}
+		if v, ok := meta["xesam:artist"]; ok {
+			switch artists := v.Value().(type) {
+			case []string:
+				artist = strings.Join(artists, ", ")
+			case string:
+				artist = artists
+			case []interface{}:
+				parts := make([]string, 0, len(artists))
+				for _, a := range artists {
+					if s, ok := a.(string); ok {
+						parts = append(parts, s)
+					}
+				}
+				artist = strings.Join(parts, ", ")
+			}
+		}
+
 		ctx["title"], ctx["artist"], ctx["album"] = title, artist, album
 	}
 	if opts.format == "" {
