@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-_playerctl_completions() {
+_goplayerctl_completions() {
 	local cur="${COMP_WORDS[$COMP_CWORD]}"
 	local prev="${COMP_WORDS[$COMP_CWORD - 1]}"
 	local root_words="
@@ -36,7 +36,7 @@ _playerctl_completions() {
 			return 0
 			;;
 		-p|--player=|-i|--ignore-player=)
-			COMPREPLY=($(compgen -W "$(playerctl --list-all)" -- "$cur"))
+			COMPREPLY=($(compgen -W "$(goplayerctl --list-all)" -- "$cur"))
 			return 0
 			;;
 		-f|--format)
@@ -58,4 +58,4 @@ _playerctl_completions() {
 	esac
 }
 
-complete -F _playerctl_completions playerctl
+complete -F _goplayerctl_completions goplayerctl
