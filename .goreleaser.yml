@@ -37,7 +37,7 @@ archives:
       - data/goplayerctl.zsh
 
 snapcrafts:
-  - name: playerctl
+  - name: goplayerctl
     summary: Media player command-line controller (Go port)
     description: |
       Go port of Playerctl for controlling media players that implement
