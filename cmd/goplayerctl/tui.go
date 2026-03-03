@@ -27,6 +27,7 @@ type tuiModel struct {
 	controlScheme string
 	position      int64
 	length        int64
+	volume        float64
 	err           error
 }
 
@@ -36,6 +37,7 @@ func initialModel(instances []string) tuiModel {
 	m := tuiModel{
 		players:       instances,
 		controlScheme: "arrow",
+		volume:        -1.0,
 	}
 	m.updateCurrentPlayerInfo()
 	return m
@@ -124,6 +126,13 @@ func (m *tuiModel) updateCurrentPlayerInfo() {
 			}
 		}
 	}
+
+	vol, err := p.Volume()
+	if err == nil {
+		m.volume = vol
+	} else {
+		m.volume = -1.0
+	}
 }
 
 func (m *tuiModel) refreshPlayers() {
@@ -200,9 +209,18 @@ const (
 	actionNext      tuiAction = "next"
 	actionPrev      tuiAction = "prev"
 	actionNone      tuiAction = "none"
+	actionVolumeUp  tuiAction = "volume_up"
+	actionVolumeDown tuiAction = "volume_down"
 )
 
 func (m *tuiModel) mapKeyEvent(key string) tuiAction {
+	switch key {
+	case "+", "=":
+		return actionVolumeUp
+	case "-", "_":
+		return actionVolumeDown
+	}
+
 	switch m.controlScheme {
 	case "arrow":
 		switch key {
@@ -321,6 +339,32 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				m.updateCurrentPlayerInfo()
 			}
 		}
+	case actionVolumeUp:
+		if len(m.players) > 0 && m.volume >= 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				newVol := m.volume + 0.05
+				if newVol > 1.0 {
+					newVol = 1.0
+				}
+				p.SetVolume(newVol)
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	case actionVolumeDown:
+		if len(m.players) > 0 && m.volume >= 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				newVol := m.volume - 0.05
+				if newVol < 0.0 {
+					newVol = 0.0
+				}
+				p.SetVolume(newVol)
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
 	}
 }
 
@@ -373,6 +417,10 @@ func (m tuiModel) View() string {
 		metaBox += lipgloss.NewStyle().Underline(true).Render("Status:") + " " + m.status + "\n\n"
 		metaBox += lipgloss.NewStyle().Underline(true).Render("Metadata:") + "\n" + m.metadata + "\n"
 
+		if m.volume >= 0 {
+			metaBox += fmt.Sprintf("Volume: %.0f%%\n", m.volume*100)
+		}
+
 		if m.length > 0 && m.status != "Stopped" {
 			metaBox += "\n"
 			width := 36
@@ -411,7 +459,7 @@ func (m tuiModel) View() string {
 	case "emacs":
 		keysHelp = "p/n: navigate • b/f: prev/next • space: play/pause"
 	}
-	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • r: refresh • q: quit"))
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • +/-: volume • r: refresh • q: quit"))
 	b.WriteString("\n")
 
 	return b.String()
