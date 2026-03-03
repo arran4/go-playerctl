@@ -111,8 +111,9 @@ func (d *daemon) refreshAndPrint(w io.Writer) error {
 	if err := d.manager.Refresh(); err != nil {
 		return err
 	}
-	names := make([]string, 0, len(d.manager.PlayerNames()))
-	for _, n := range d.manager.PlayerNames() {
+	playerNames := d.manager.PlayerNames()
+	names := make([]string, 0, len(playerNames))
+	for _, n := range playerNames {
 		names = append(names, n.Instance)
 		fmt.Fprintln(w, n.Instance)
 	}
