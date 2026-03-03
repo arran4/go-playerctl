@@ -106,6 +106,7 @@ func TestPlayerPropertyAndCommandWithFakeBusObject(t *testing.T) {
 			"xesam:album":   dbus.MakeVariant("Album"),
 			"xesam:artist":  dbus.MakeVariant([]string{"Artist"}),
 			"mpris:trackid": dbus.MakeVariant(dbus.ObjectPath("/track/1")),
+			"mpris:artUrl":  dbus.MakeVariant("file:///tmp/art.jpg"),
 		}),
 	}}
 	p := &Player{obj: f}
@@ -136,6 +137,9 @@ func TestPlayerPropertyAndCommandWithFakeBusObject(t *testing.T) {
 	}
 	if track, _ := p.GetTrackID(); track != "/track/1" {
 		t.Fatalf("track %q", track)
+	}
+	if art, _ := p.GetArtUrl(); art != "file:///tmp/art.jpg" {
+		t.Fatalf("artUrl %q", art)
 	}
 
 	if err := p.Play(); err != nil {

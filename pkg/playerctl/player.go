@@ -356,6 +356,9 @@ func (p *Player) GetTitle() (string, error) { return p.metadataStringKey("xesam:
 // GetAlbum returns xesam:album metadata.
 func (p *Player) GetAlbum() (string, error) { return p.metadataStringKey("xesam:album") }
 
+// GetArtUrl returns mpris:artUrl metadata.
+func (p *Player) GetArtUrl() (string, error) { return p.metadataStringKey("mpris:artUrl") }
+
 // GetTrackID returns mpris:trackid metadata.
 func (p *Player) GetTrackID() (string, error) {
 	meta, err := p.Metadata()

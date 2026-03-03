@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -66,7 +68,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd := strings.ToLower(remaining[0])
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
-		"next": {}, "previous": {}, "status": {}, "metadata": {},
+		"next": {}, "previous": {}, "status": {}, "metadata": {}, "album-art": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -96,7 +98,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			}
 			continue
 		}
-		if code := runCommand(cmd, p, stdout, stderr, opts); code != 0 {
+		if code := runCommand(cmd, remaining, p, stdout, stderr, opts); code != 0 {
 			p.Close()
 			if !*allPlayers {
 				return code
@@ -209,7 +211,7 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 	return f.Expand(ctx)
 }
 
-func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts cliOptions) int {
+func runCommand(cmd string, args []string, p *playerctl.Player, stdout, stderr io.Writer, opts cliOptions) int {
 	write := func(v string) {
 		if opts.allPlayers {
 			fmt.Fprintf(stdout, "%s %s\n", p.Instance(), v)
@@ -250,6 +252,53 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 			return 1
 		}
 		write(line)
+	case "album-art":
+		artUrl, err := p.GetArtUrl()
+		if err != nil || artUrl == "" {
+			fmt.Fprintln(stderr, "No album art URL found")
+			return 1
+		}
+		u, err := url.Parse(artUrl)
+		if err != nil {
+			fmt.Fprintln(stderr, "Invalid album art URL:", err)
+			return 1
+		}
+
+		var reader io.ReadCloser
+		if u.Scheme == "file" || u.Scheme == "" {
+			reader, err = os.Open(u.Path)
+		} else if u.Scheme == "http" || u.Scheme == "https" {
+			var resp *http.Response
+			resp, err = http.Get(artUrl)
+			if err == nil && resp.StatusCode != http.StatusOK {
+				err = fmt.Errorf("HTTP error: %s", resp.Status)
+				resp.Body.Close()
+			} else if err == nil {
+				reader = resp.Body
+			}
+		} else {
+			err = fmt.Errorf("unsupported scheme: %s", u.Scheme)
+		}
+		if err != nil {
+			fmt.Fprintln(stderr, "Failed to fetch album art:", err)
+			return 1
+		}
+		defer reader.Close()
+
+		var out io.Writer = stdout
+		if len(args) > 1 {
+			f, err := os.Create(args[1])
+			if err != nil {
+				fmt.Fprintln(stderr, "Failed to open output file:", err)
+				return 1
+			}
+			defer f.Close()
+			out = f
+		}
+		if _, err := io.Copy(out, reader); err != nil {
+			fmt.Fprintln(stderr, "Failed to write album art:", err)
+			return 1
+		}
 	}
 	return 0
 }
