@@ -35,10 +35,18 @@ type tuiModel struct {
 
 var controlSchemes = []string{"arrow", "vim", "winamp", "emacs"}
 
-func initialModel(instances []string) tuiModel {
+func initialModel(instances []string, defaultScheme string) tuiModel {
+	scheme := "arrow"
+	for _, s := range controlSchemes {
+		if s == defaultScheme {
+			scheme = s
+			break
+		}
+	}
+
 	m := tuiModel{
 		players:       instances,
-		controlScheme: "arrow",
+		controlScheme: scheme,
 		volume:        -1.0,
 	}
 	m.updateCurrentPlayerInfo()
@@ -187,7 +195,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			m.refreshPlayers()
 			m.updateCurrentPlayerInfo()
-		case "tab", "s":
+		case "s":
 			m.cycleControlScheme()
 		default:
 			action := m.mapKeyEvent(key)
@@ -401,7 +409,7 @@ func (m tuiModel) View() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render("Go Playerctl TUI"))
-	b.WriteString(fmt.Sprintf(" [Scheme: %s (press tab to change)]\n\n", m.controlScheme))
+	b.WriteString(fmt.Sprintf(" [Scheme: %s (press s to change)]\n\n", m.controlScheme))
 
 	boxWidth := 40
 	if m.width > 0 {
@@ -493,7 +501,7 @@ func runTUI(instances []string, stdout, stderr io.Writer, opts cliOptions) int {
 			instances = append(instances, n.Instance)
 		}
 	}
-	p := tea.NewProgram(initialModel(instances), tea.WithOutput(stdout))
+	p := tea.NewProgram(initialModel(instances, opts.tuiScheme), tea.WithOutput(stdout))
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(stderr, "Error running TUI: %v\n", err)
 		return 1

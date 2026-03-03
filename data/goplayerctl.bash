@@ -23,6 +23,7 @@ _goplayerctl_completions() {
 		-i --ignore-player=
 		-f --format
 		-F --follow
+		--tui-scheme=
 		-l --list-all
 		-v --version"
 
@@ -37,6 +38,10 @@ _goplayerctl_completions() {
 			;;
 		-p|--player=|-i|--ignore-player=)
 			COMPREPLY=($(compgen -W "$(goplayerctl --list-all)" -- "$cur"))
+			return 0
+			;;
+		--tui-scheme=)
+			COMPREPLY=($(compgen -W "arrow vim winamp emacs" -- "$cur"))
 			return 0
 			;;
 		-f|--format)
