@@ -7,7 +7,7 @@ import (
 )
 
 func TestPlayerctlVersionCommandIntegration(t *testing.T) {
-	cmd := exec.Command("go", "run", "./cmd/playerctl", "--version")
+	cmd := exec.Command("go", "run", "./cmd/goplayerctl", "--version")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go run --version failed: %v output=%s", err, string(out))
@@ -18,7 +18,7 @@ func TestPlayerctlVersionCommandIntegration(t *testing.T) {
 }
 
 func TestPlayerctlMissingCommandIntegration(t *testing.T) {
-	cmd := exec.Command("go", "run", "./cmd/playerctl")
+	cmd := exec.Command("go", "run", "./cmd/goplayerctl")
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("expected non-zero exit, output=%s", string(out))

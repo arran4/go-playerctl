@@ -6,7 +6,7 @@ playerctl-go - control MPRIS media players from the Go port CLI
 
 # SYNOPSIS
 
-`go run ./cmd/playerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND`
+`go run ./cmd/goplayerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND`
 
 # DESCRIPTION
 
@@ -46,4 +46,4 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 
 # SEE ALSO
 
-`README.md`, `docs/final_acceptance_checklist.md`, `cmd/playerctl/main.go`
+`README.md`, `docs/final_acceptance_checklist.md`, `cmd/goplayerctl/main.go`

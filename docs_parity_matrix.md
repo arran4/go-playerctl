@@ -6,11 +6,11 @@ This matrix tracks high-value parity outcomes and links each item to current tes
 
 | Scenario | Expected behavior | Current Go status | Test reference |
 |---|---|---|---|
-| `--version` | exit `0`, version text on stdout | ✅ | `cmd/playerctl/main_test.go::TestRunValidationAndVersion` |
+| `--version` | exit `0`, version text on stdout | ✅ | `cmd/goplayerctl/main_test.go::TestRunValidationAndVersion` |
 | missing command | exit `2`, usage-style stderr | ✅ (`missing command`) | `integration_cli_test.go::TestPlayerctlMissingCommandIntegration` |
-| unknown command | exit `2`, stderr contains command name | ✅ | `cmd/playerctl/main_test.go::TestRunValidationAndVersion` |
-| connection failure | exit `1`, stderr indicates connection failure | ✅ | `cmd/playerctl/main_test.go::TestRunConnectionFailure` |
-| invalid `--follow` command | exit `2`, stderr validation message | ✅ | `cmd/playerctl/main_test.go::TestRunFollowValidation` |
+| unknown command | exit `2`, stderr contains command name | ✅ | `cmd/goplayerctl/main_test.go::TestRunValidationAndVersion` |
+| connection failure | exit `1`, stderr indicates connection failure | ✅ | `cmd/goplayerctl/main_test.go::TestRunConnectionFailure` |
+| invalid `--follow` command | exit `2`, stderr validation message | ✅ | `cmd/goplayerctl/main_test.go::TestRunFollowValidation` |
 
 ## `playerctld` ordering/race-case validation
 

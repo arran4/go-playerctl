@@ -17,7 +17,7 @@ parts:
       - go
     override-build: |
       craftctl default
-      go build -o "$CRAFT_PART_INSTALL/bin/playerctl" ./cmd/playerctl
+      go build -o "$CRAFT_PART_INSTALL/bin/goplayerctl" ./cmd/goplayerctl
       go build -o "$CRAFT_PART_INSTALL/bin/playerctld" ./cmd/playerctld
       install -Dm644 data/org.mpris.MediaPlayer2.playerctld.service.in "$CRAFT_PART_INSTALL/usr/share/dbus-1/services/org.mpris.MediaPlayer2.playerctld.service"
 
@@ -32,8 +32,8 @@ slots:
     interface: desktop-legacy
 
 apps:
-  playerctl:
-    command: bin/playerctl
+  goplayerctl:
+    command: bin/goplayerctl
     plugs: [ network, desktop, desktop-legacy ]
 
   playerctld:
