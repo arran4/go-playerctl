@@ -4,6 +4,17 @@ A Go port of Playerctl for controlling MPRIS-compatible media players over D-Bus
 
 > Status: **Go-complete baseline**. Core CLI, daemon, and library are implemented in Go. See docs in `docs/` for stability policy, acceptance checklist, and intentional deviations.
 
+## Installation
+
+You can download pre-compiled binaries for your platform from the [GitHub Releases page](https://github.com/arran4/go-playerctl/releases).
+
+Alternatively, you can install from source using `go install`:
+
+```bash
+go install github.com/arran4/go-playerctl/cmd/playerctl@latest
+go install github.com/arran4/go-playerctl/cmd/playerctld@latest
+```
+
 ## Quick start
 
 ```bash
