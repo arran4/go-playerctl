@@ -257,6 +257,16 @@ Truncate
 to a maximum of
 .Fa len
 characters, adding an ellipsis (…) if necessary.
+.It Fn add a b
+Add the integer
+.Fa a
+to
+.Fa b .
+.It Fn sub a b
+Subtract the integer
+.Fa b
+from
+.Fa a .
 .El
 .Pp
 The template language is also able to perform basic math operations.

@@ -34,12 +34,45 @@ func run(args []string, stdout, stderr io.Writer) int {
 	allPlayers := fs.Bool("all-players", false, "target all available players")
 	listAll := fs.Bool("list-all", false, "list all available players")
 	version := fs.Bool("version", false, "print version")
-	format := fs.String("format", "", "output format template")
+	templateHelp := fs.Bool("template-help", false, "print template help and examples")
+	format := fs.String("format", "", "output format template (see --template-help for details)")
 	follow := fs.Bool("follow", false, "follow output updates")
 	followInterval := fs.Duration("follow-interval", time.Second, "follow polling interval")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+	if *templateHelp {
+		fmt.Fprint(stdout, `Format Strings
+
+The output of commands can be controlled using a Go text/template format string.
+Variables set by these commands can be included in the format string by
+enclosing them in curly braces: {{ .var }}. These will then be expanded on output.
+
+Each command has access to the following variables:
+  .player      The name of the current player.
+  .status      The status of the current player.
+  .title       The title of the current track.
+  .artist      The artist of the current track.
+  .album       The album of the current track.
+
+Helper functions are available to transform expanded variables:
+  lc str               Convert string to lowercase.
+  uc str               Convert string to uppercase.
+  markup_escape str    Escape XML characters in string.
+  default str1 str2    Print str1 if set, else print str2.
+  duration time        Reformat a microsecond timestamp.
+  emoji status         Convert a status value to an emoji.
+  trunc str len        Truncate a string to a max length.
+  add a b              Add two integers.
+  sub a b              Subtract two integers.
+
+Examples:
+  go run ./cmd/goplayerctl --format '{{ .player }}: {{ .title }}' metadata
+  go run ./cmd/goplayerctl --format '{{ default .artist "Unknown" }} - {{ .title }}' metadata
+  go run ./cmd/goplayerctl --format '{{ emoji .status }} {{ lc .status }}' status
+`)
+		return 0
 	}
 	if *version {
 		fmt.Fprintln(stdout, "go-playerctl (port in progress)")
