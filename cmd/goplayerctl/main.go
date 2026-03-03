@@ -64,6 +64,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	cmd := strings.ToLower(remaining[0])
+	if cmd == "daemon" {
+		return runDaemon(remaining[1:], stdout, stderr)
+	}
+
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {},

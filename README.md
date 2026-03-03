@@ -11,8 +11,7 @@ You can download pre-compiled binaries for your platform from the [GitHub Releas
 Alternatively, you can install from source using `go install`:
 
 ```bash
-go install github.com/arran4/go-playerctl/cmd/playerctl@latest
-go install github.com/arran4/go-playerctl/cmd/playerctld@latest
+go install github.com/arran4/go-playerctl/cmd/goplayerctl@latest
 ```
 
 ## Quick start
@@ -20,7 +19,7 @@ go install github.com/arran4/go-playerctl/cmd/playerctld@latest
 ```bash
 go test ./...
 go run ./cmd/goplayerctl --version
-go run ./cmd/playerctld --version
+go run ./cmd/goplayerctl daemon --help
 ```
 
 ## CLI usage (`playerctl`)
@@ -49,6 +48,7 @@ go run ./cmd/goplayerctl [flags] <command>
 - `previous`
 - `status`
 - `metadata`
+- `daemon`
 
 ### Examples
 
@@ -69,17 +69,16 @@ go run ./cmd/playerctl --player spotify --format '{{ default .artist "Unknown Ar
 go run ./cmd/goplayerctl --player spotify --follow status
 ```
 
-## Daemon usage (`playerctld`)
+## Daemon usage (`goplayerctl daemon`)
 
 ```bash
-go run ./cmd/playerctld [flags]
+go run ./cmd/goplayerctl daemon [flags]
 ```
 
 ### Supported flags
 
 - `--once` refresh and print discovered players once, then exit
 - `--refresh-interval` refresh interval for daemon loop
-- `--version` print daemon version string
 
 ### D-Bus service surface (current)
 

@@ -16,7 +16,6 @@ import (
 )
 
 var (
-	newManager       = playerctl.NewPlayerManager
 	connectSessionDB = dbus.ConnectSessionBus
 )
 
@@ -26,25 +25,18 @@ const (
 	serviceIface = "com.github.altdesktop.playerctld"
 )
 
-func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
-
-func run(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("playerctld", flag.ContinueOnError)
+func runDaemon(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("daemon", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	version := fs.Bool("version", false, "print version")
 	once := fs.Bool("once", false, "refresh players once and print order")
 	interval := fs.Duration("refresh-interval", 2*time.Second, "refresh interval")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if *version {
-		fmt.Fprintln(stdout, "go-playerctld (port in progress)")
-		return 0
-	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	daemon, err := newDaemon(*interval)
+	daemon, err := newDaemonObj(*interval)
 	if err != nil {
 		fmt.Fprintf(stderr, "daemon init failed: %v\n", err)
 		return 1
@@ -78,8 +70,8 @@ type daemon struct {
 	conn             *dbus.Conn
 }
 
-func newDaemon(interval time.Duration) (*daemon, error) {
-	m, err := newManager(playerctl.SourceNone)
+func newDaemonObj(interval time.Duration) (*daemon, error) {
+	m, err := newPlayerManger(playerctl.SourceNone)
 	if err != nil {
 		return nil, err
 	}
