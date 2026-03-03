@@ -195,7 +195,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			m.refreshPlayers()
 			m.updateCurrentPlayerInfo()
-		case "ctrl+s":
+		case "alt+s":
 			m.cycleControlScheme()
 		default:
 			action := m.mapKeyEvent(key)
@@ -409,7 +409,7 @@ func (m tuiModel) View() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render("Go Playerctl TUI"))
-	b.WriteString(fmt.Sprintf(" [Scheme: %s (press ctrl+s to change)]\n\n", m.controlScheme))
+	b.WriteString(fmt.Sprintf(" [Scheme: %s (press alt+s to change)]\n\n", m.controlScheme))
 
 	boxWidth := 40
 	if m.width > 0 {
