@@ -11,7 +11,7 @@ You can download pre-compiled binaries for your platform from the [GitHub Releas
 Alternatively, you can install from source using `go install`:
 
 ```bash
-go install github.com/arran4/go-playerctl/cmd/playerctl@latest
+go install github.com/arran4/go-playerctl/cmd/goplayerctl@latest
 go install github.com/arran4/go-playerctl/cmd/playerctld@latest
 ```
 
@@ -67,6 +67,14 @@ goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - 
 
 # follow status changes
 goplayerctl --player spotify --follow status
+```
+
+## TUI usage (`playerctl tui`)
+
+![tui-1.png](docs/tui-1.png)
+
+```bash
+go run ./cmd/playerctld [flags]
 ```
 
 ## Daemon usage (`playerctld`)

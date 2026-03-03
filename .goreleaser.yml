@@ -33,6 +33,8 @@ archives:
       - README.md
       - COPYING
       - doc/playerctl-go.1.md
+      - data/goplayerctl.bash
+      - data/goplayerctl.zsh
 
 checksum:
   name_template: checksums.txt
