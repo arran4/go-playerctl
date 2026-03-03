@@ -28,6 +28,8 @@ type tuiModel struct {
 	position      int64
 	length        int64
 	err           error
+	width         int
+	height        int
 }
 
 var controlSchemes = []string{"arrow", "vim", "winamp", "emacs"}
@@ -165,6 +167,9 @@ func (m tuiModel) Init() tea.Cmd {
 
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	case tea.KeyMsg:
 		key := msg.String()
 		switch key {
@@ -334,8 +339,7 @@ var (
 	boxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#874BFD")).
-			Padding(0, 1).
-			Width(40)
+			Padding(0, 1)
 
 	selectedItemStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#01FAC6")).
@@ -355,6 +359,15 @@ func (m tuiModel) View() string {
 	b.WriteString(titleStyle.Render("Go Playerctl TUI"))
 	b.WriteString(fmt.Sprintf(" [Scheme: %s (press tab to change)]\n\n", m.controlScheme))
 
+	boxWidth := 40
+	if m.width > 0 {
+		calculated := (m.width / 2) - 4
+		if calculated > 40 {
+			boxWidth = calculated
+		}
+	}
+	currentBoxStyle := boxStyle.Width(boxWidth)
+
 	playersBox := ""
 	for i, player := range m.players {
 		if m.cursor == i {
@@ -366,7 +379,7 @@ func (m tuiModel) View() string {
 	if len(m.players) == 0 {
 		playersBox = "No players available.\n"
 	}
-	playersBoxStr := boxStyle.Render(playersBox)
+	playersBoxStr := currentBoxStyle.Render(playersBox)
 
 	metaBox := ""
 	if len(m.players) > 0 {
@@ -375,14 +388,17 @@ func (m tuiModel) View() string {
 
 		if m.length > 0 && m.status != "Stopped" {
 			metaBox += "\n"
-			width := 36
-			filled := int((float64(m.position) / float64(m.length)) * float64(width))
-			if filled > width {
-				filled = width
+			progressBarWidth := boxWidth - 4
+			if progressBarWidth < 10 {
+				progressBarWidth = 10
+			}
+			filled := int((float64(m.position) / float64(m.length)) * float64(progressBarWidth))
+			if filled > progressBarWidth {
+				filled = progressBarWidth
 			} else if filled < 0 {
 				filled = 0
 			}
-			empty := width - filled
+			empty := progressBarWidth - filled
 
 			bar := lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Render(strings.Repeat("█", filled)) +
 				lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", empty))
@@ -395,7 +411,7 @@ func (m tuiModel) View() string {
 	} else {
 		metaBox = "No metadata\n"
 	}
-	metaBoxStr := boxStyle.Render(metaBox)
+	metaBoxStr := currentBoxStyle.Render(metaBox)
 
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, playersBoxStr, metaBoxStr))
 	b.WriteString("\n\n")
