@@ -69,6 +69,14 @@ go run ./cmd/goplayerctl --player spotify --format '{{ default .artist "Unknown 
 go run ./cmd/goplayerctl --player spotify --follow status
 ```
 
+## TUI usage (`playerctl tui`)
+
+![tui-1.png](docs/tui-1.png)
+
+```bash
+go run ./cmd/playerctld [flags]
+```
+
 ## Daemon usage (`playerctld`)
 
 ```bash
