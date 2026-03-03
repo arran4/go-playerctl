@@ -38,6 +38,7 @@ goplayerctl [flags] <command>
 - `--format` output format using Go template syntax
 - `--follow` poll and print changes for query commands
 - `--follow-interval` polling period for `--follow`
+- `--tui-scheme` TUI control scheme (arrow, vim, winamp, emacs)
 - `--version` print CLI version string
 
 ### Supported commands

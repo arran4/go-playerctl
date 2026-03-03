@@ -28,6 +28,7 @@ type cliOptions struct {
 	follow     bool
 	followTick time.Duration
 	allPlayers bool
+	tuiScheme  string
 }
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -75,6 +76,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	templateHelpFlag := fs.Bool("template-help", false, "print template help and exit")
 	follow := fs.Bool("follow", false, "follow output updates")
 	followInterval := fs.Duration("follow-interval", time.Second, "follow polling interval")
+	tuiScheme := fs.String("tui-scheme", "arrow", "TUI control scheme (arrow, vim, winamp, emacs)")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -124,7 +126,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
 	}
-	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers}
+	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, tuiScheme: *tuiScheme}
 	if opts.follow {
 		return followCommand(cmd, instances, stdout, stderr, opts)
 	}
