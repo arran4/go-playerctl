@@ -35,19 +35,6 @@ func helperDuration(input string) string {
 	return input
 }
 
-func helperEmoji(status string) string {
-	switch strings.ToLower(status) {
-	case "playing":
-		return "▶️"
-	case "paused":
-		return "⏸️"
-	case "stopped":
-		return "⏹️"
-	default:
-		return ""
-	}
-}
-
 func helperTrunc(v string, max int) string {
 	if max <= 0 || len(v) <= max {
 		return v
@@ -78,7 +65,18 @@ func NewFormatter(format string) (*Formatter, error) {
 			},
 			"duration":      helperDuration,
 			"markup_escape": html.EscapeString,
-			"emoji":         helperEmoji,
+			"emoji": func(status string) string {
+				switch strings.ToLower(status) {
+				case "playing":
+					return "▶️"
+				case "paused":
+					return "⏸️"
+				case "stopped":
+					return "⏹️"
+				default:
+					return ""
+				}
+			},
 			"trunc":         helperTrunc,
 		}).
 		Option("missingkey=zero").
