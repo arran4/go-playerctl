@@ -194,12 +194,15 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 		}
 		ctx["status"] = status.String()
 	case "metadata":
-		title, err := p.GetTitle()
+		meta, err := p.Metadata()
 		if err != nil {
 			return "", err
 		}
-		artist, _ := p.GetArtist()
-		album, _ := p.GetAlbum()
+
+		title := playerctl.ExtractTitle(meta)
+		artist := playerctl.ExtractArtist(meta)
+		album := playerctl.ExtractAlbum(meta)
+
 		ctx["title"], ctx["artist"], ctx["album"] = title, artist, album
 	}
 	if opts.format == "" {
