@@ -70,12 +70,11 @@ func TestFormatterArithmetic(t *testing.T) {
 }
 
 func TestFormatterHelperParityFunctions(t *testing.T) {
-	f, err := NewFormatter(`{{ duration .d }}|{{ markup_escape .m }}|{{ emoji .s }}|{{ trunc .t 5 }}`)
+	f, err := NewFormatter(`{{ markup_escape .m }}|{{ emoji .s }}|{{ trunc .t 5 }}`)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	got, err := f.Expand(map[string]string{
-		"d": "125s",
 		"m": `<b>&</b>`,
 		"s": "playing",
 		"t": "abcdefgh",
@@ -83,7 +82,7 @@ func TestFormatterHelperParityFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected expand error: %v", err)
 	}
-	if got != "2:05|&lt;b&gt;&amp;&lt;/b&gt;|▶️|abcd…" {
+	if got != "&lt;b&gt;&amp;&lt;/b&gt;|▶️|abcd…" {
 		t.Fatalf("helper parity mismatch: %q", got)
 	}
 }

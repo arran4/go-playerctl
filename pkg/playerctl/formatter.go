@@ -6,33 +6,12 @@ import (
 	"html"
 	"strings"
 	"text/template"
-	"time"
 )
 
 // Formatter expands text/template expressions using a string context.
 type Formatter struct {
 	raw  string
 	tmpl *template.Template
-}
-
-func helperDuration(input string) string {
-	if input == "" {
-		return ""
-	}
-	if n, err := time.ParseDuration(input); err == nil {
-		total := int64(n.Seconds())
-		if total < 0 {
-			total = -total
-		}
-		h := total / 3600
-		m := (total % 3600) / 60
-		s := total % 60
-		if h > 0 {
-			return fmt.Sprintf("%d:%02d:%02d", h, m, s)
-		}
-		return fmt.Sprintf("%d:%02d", m, s)
-	}
-	return input
 }
 
 func helperEmoji(status string) string {
@@ -76,7 +55,6 @@ func NewFormatter(format string) (*Formatter, error) {
 				}
 				return v
 			},
-			"duration":      helperDuration,
 			"markup_escape": html.EscapeString,
 			"emoji":         helperEmoji,
 			"trunc":         helperTrunc,

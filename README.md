@@ -146,7 +146,6 @@ func main() {
 
 - `lc`, `uc`
 - `default`
-- `duration`
 - `markup_escape`
 - `emoji`
 - `trunc`
