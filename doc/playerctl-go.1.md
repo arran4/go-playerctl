@@ -30,6 +30,7 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 - `--all-players`: target all discovered players.
 - `--list-all`: print discovered player names.
 - `--format`: Go template format string.
+- `--template-help`: print detailed help for format templates and exit.
 - `--follow`: keep polling and print value changes.
 - `--follow-interval`: polling interval (default: 1s).
 - `--version`: print version string.
@@ -53,15 +54,33 @@ goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - 
 goplayerctl --player spotify --follow status
 ```
 
-# FORMAT FUNCTIONS
+# FORMAT STRINGS
 
-- `lc`, `uc`
-- `default`
-- `duration`
-- `markup_escape`
-- `emoji`
-- `trunc`
-- `add`, `sub`
+The Go port of `playerctl` uses standard Go `text/template` syntax for formatting output.
+
+## Variables
+
+The following variables are available in the template context:
+
+- `.player`: The name of the player instance.
+- `.status`: The playback status (e.g., Playing, Paused, Stopped).
+- `.title`: The title of the current track.
+- `.artist`: The artist of the current track.
+- `.album`: The album of the current track.
+
+## Functions
+
+The following custom functions are available:
+
+- `lc`: Lowercase string.
+- `uc`: Uppercase string.
+- `default <fallback> <value>`: Return fallback if value is empty.
+- `duration <value>`: Format duration value.
+- `markup_escape <value>`: HTML escape string.
+- `emoji <status>`: Return an emoji for playback status.
+- `trunc <max> <value>`: Truncate string to max length.
+- `add <a> <b>`: Add two integers.
+- `sub <a> <b>`: Subtract two integers.
 
 # SEE ALSO
 

@@ -3,15 +3,20 @@ package main
 //go:generate md2man -in ../../doc/playerctl-go.1.md -out ../../doc/goplayerctl.1
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/arran4/go-playerctl/pkg/playerctl"
 )
+
+//go:embed template_help.tmpl
+var templateHelp string
 
 var (
 	newPlayer       = playerctl.NewPlayer
@@ -27,6 +32,36 @@ type cliOptions struct {
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
+func printTemplateHelp(stdout io.Writer) {
+	tmpl, err := template.New("help").Parse(templateHelp)
+	if err != nil {
+		fmt.Fprintf(stdout, "Error parsing template help: %v\n", err)
+		return
+	}
+	progName := "goplayerctl"
+	if len(os.Args) > 0 {
+		progName = os.Args[0]
+		// extract base name
+		if idx := strings.LastIndexByte(progName, '/'); idx >= 0 {
+			progName = progName[idx+1:]
+		} else if idx := strings.LastIndexByte(progName, '\\'); idx >= 0 {
+			progName = progName[idx+1:]
+		}
+	}
+
+	// Ensure we're called via go test where os.Args isn't helpful, so default back to "goplayerctl" if it's main.test or similar
+	if strings.Contains(progName, "test") {
+		progName = "goplayerctl"
+	}
+
+	err = tmpl.Execute(stdout, map[string]string{
+		"ProgramName": progName,
+	})
+	if err != nil {
+		fmt.Fprintf(stdout, "Error executing template help: %v\n", err)
+	}
+}
+
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("playerctl", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -37,6 +72,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	listAll := fs.Bool("list-all", false, "list all available players")
 	version := fs.Bool("version", false, "print version")
 	format := fs.String("format", "", "output format template")
+	templateHelpFlag := fs.Bool("template-help", false, "print template help and exit")
 	follow := fs.Bool("follow", false, "follow output updates")
 	followInterval := fs.Duration("follow-interval", time.Second, "follow polling interval")
 
@@ -45,6 +81,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	if *version {
 		fmt.Fprintln(stdout, "go-playerctl (port in progress)")
+		return 0
+	}
+	if *templateHelpFlag {
+		printTemplateHelp(stdout)
 		return 0
 	}
 	if *listAll {
