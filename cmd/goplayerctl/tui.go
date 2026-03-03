@@ -201,15 +201,15 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 type tuiAction string
 
 const (
-	actionUp        tuiAction = "up"
-	actionDown      tuiAction = "down"
-	actionPlayPause tuiAction = "playpause"
-	actionPause     tuiAction = "pause"
-	actionStop      tuiAction = "stop"
-	actionNext      tuiAction = "next"
-	actionPrev      tuiAction = "prev"
-	actionNone      tuiAction = "none"
-	actionVolumeUp  tuiAction = "volume_up"
+	actionUp         tuiAction = "up"
+	actionDown       tuiAction = "down"
+	actionPlayPause  tuiAction = "playpause"
+	actionPause      tuiAction = "pause"
+	actionStop       tuiAction = "stop"
+	actionNext       tuiAction = "next"
+	actionPrev       tuiAction = "prev"
+	actionNone       tuiAction = "none"
+	actionVolumeUp   tuiAction = "volume_up"
 	actionVolumeDown tuiAction = "volume_down"
 )
 
