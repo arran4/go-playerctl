@@ -6,7 +6,7 @@ playerctl-go - control MPRIS media players from the Go port CLI
 
 # SYNOPSIS
 
-`go run ./cmd/goplayerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND`
+`goplayerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND`
 
 # DESCRIPTION
 
@@ -38,19 +38,19 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 
 ```bash
 # list players
-go run ./cmd/goplayerctl --list-all
+goplayerctl --list-all
 
 # query status for one player
-go run ./cmd/goplayerctl --player vlc status
+goplayerctl --player vlc status
 
 # query metadata for all players with formatted output
-go run ./cmd/goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
+goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
 
 # query metadata for a player showing artist, album, and title
-go run ./cmd/goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
+goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
 
 # follow status changes
-go run ./cmd/goplayerctl --player spotify --follow status
+goplayerctl --player spotify --follow status
 ```
 
 # FORMAT FUNCTIONS

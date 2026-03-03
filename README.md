@@ -19,14 +19,14 @@ go install github.com/arran4/go-playerctl/cmd/playerctld@latest
 
 ```bash
 go test ./...
-go run ./cmd/goplayerctl --version
-go run ./cmd/playerctld --version
+goplayerctl --version
+playerctld --version
 ```
 
-## CLI usage (`playerctl`)
+## CLI usage (`goplayerctl`)
 
 ```bash
-go run ./cmd/goplayerctl [flags] <command>
+goplayerctl [flags] <command>
 ```
 
 ### Supported flags
@@ -54,25 +54,25 @@ go run ./cmd/goplayerctl [flags] <command>
 
 ```bash
 # list players
-go run ./cmd/goplayerctl --list-all
+goplayerctl --list-all
 
 # query status for one player
-go run ./cmd/goplayerctl --player vlc status
+goplayerctl --player vlc status
 
 # query metadata for all players with formatted output
-go run ./cmd/goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
+goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
 
 # query metadata for a player showing artist, album, and title
-go run ./cmd/playerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
+goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
 
 # follow status changes
-go run ./cmd/goplayerctl --player spotify --follow status
+goplayerctl --player spotify --follow status
 ```
 
 ## Daemon usage (`playerctld`)
 
 ```bash
-go run ./cmd/playerctld [flags]
+playerctld [flags]
 ```
 
 ### Supported flags
@@ -147,15 +147,13 @@ func main() {
 Example:
 
 ```bash
-go run ./cmd/goplayerctl --player spotify --format '{{ emoji .status }} {{ default .title "(none)" }}' status
+goplayerctl --player spotify --format '{{ emoji .status }} {{ default .title "(none)" }}' status
 ```
 
 ## Documentation and references
 
-- Legacy doc sources currently in tree:
-  - `doc/playerctl.1.in`
-  - `doc/reference/playerctl-docs.xml`
-  - `doc/reference/version.xml.in`
+- API Reference: [pkg.go.dev/github.com/arran4/go-playerctl](https://pkg.go.dev/github.com/arran4/go-playerctl)
+- Man page source: `doc/playerctl-go.1.md`
 
 ## Development
 
