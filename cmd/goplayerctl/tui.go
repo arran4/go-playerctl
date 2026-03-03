@@ -326,23 +326,23 @@ func (m *tuiModel) handleAction(action tuiAction) {
 
 var (
 	titleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#FAFAFA")).
-		Background(lipgloss.Color("#7D56F4")).
-		Padding(0, 1)
+			Bold(true).
+			Foreground(lipgloss.Color("#FAFAFA")).
+			Background(lipgloss.Color("#7D56F4")).
+			Padding(0, 1)
 
 	boxStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#874BFD")).
-		Padding(0, 1).
-		Width(40)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#874BFD")).
+			Padding(0, 1).
+			Width(40)
 
 	selectedItemStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#01FAC6")).
-		Bold(true)
+				Foreground(lipgloss.Color("#01FAC6")).
+				Bold(true)
 
 	itemStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#8A8A8A"))
+			Foreground(lipgloss.Color("#8A8A8A"))
 )
 
 func (m tuiModel) View() string {
@@ -358,9 +358,9 @@ func (m tuiModel) View() string {
 	playersBox := ""
 	for i, player := range m.players {
 		if m.cursor == i {
-			playersBox += selectedItemStyle.Render("> " + player) + "\n"
+			playersBox += selectedItemStyle.Render("> "+player) + "\n"
 		} else {
-			playersBox += itemStyle.Render("  " + player) + "\n"
+			playersBox += itemStyle.Render("  "+player) + "\n"
 		}
 	}
 	if len(m.players) == 0 {
