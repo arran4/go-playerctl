@@ -96,3 +96,33 @@ func TestStringInstanceCompare(t *testing.T) {
 		}
 	}
 }
+
+func TestStringInstanceCompareCCompatibilityCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		instance string
+		match    bool
+	}{
+		{name: "spotify", instance: "spotify.instance1", match: true},
+		{name: "spotify.instance1", instance: "spotify", match: true},
+		{name: "spotify", instance: "spotifyd", match: false},
+		{name: "chromium", instance: "chromium.instance785", match: true},
+		{name: "chromium", instance: "chromiuminstance785", match: false},
+		{name: "org.mpris.MediaPlayer2.vlc", instance: "org.mpris.MediaPlayer2.vlc.instance99", match: true},
+		{name: "vlc", instance: "org.mpris.MediaPlayer2.vlc", match: false},
+		{name: "vlc", instance: "vlc-instance", match: false},
+		{name: "%any", instance: "org.mpris.MediaPlayer2.firefox.instance", match: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name+"__"+tt.instance, func(t *testing.T) {
+			got := StringInstanceCompare(tt.name, tt.instance)
+			if tt.match && got != 0 {
+				t.Fatalf("expected a match but got %d", got)
+			}
+			if !tt.match && got == 0 {
+				t.Fatalf("expected no match but got %d", got)
+			}
+		})
+	}
+}
