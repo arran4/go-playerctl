@@ -62,6 +62,9 @@ go run ./cmd/playerctl --player vlc status
 # query metadata for all players with formatted output
 go run ./cmd/playerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
 
+# query metadata for a player showing artist, album, and title
+go run ./cmd/playerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
+
 # follow status changes
 go run ./cmd/playerctl --player spotify --follow status
 ```
