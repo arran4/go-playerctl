@@ -309,21 +309,17 @@ func (p *Player) setProperty(name string, value dbus.Variant) error {
 	return nil
 }
 
-// GetArtist returns a best-effort artist string from metadata.
-func (p *Player) GetArtist() (string, error) {
-	meta, err := p.Metadata()
-	if err != nil {
-		return "", err
-	}
+// ExtractArtist returns a best-effort artist string from a metadata map.
+func ExtractArtist(meta map[string]dbus.Variant) string {
 	v, ok := meta["xesam:artist"]
 	if !ok {
-		return "", nil
+		return ""
 	}
 	switch artists := v.Value().(type) {
 	case []string:
-		return strings.Join(artists, ", "), nil
+		return strings.Join(artists, ", ")
 	case string:
-		return artists, nil
+		return artists
 	case []interface{}:
 		parts := make([]string, 0, len(artists))
 		for _, a := range artists {
@@ -331,10 +327,51 @@ func (p *Player) GetArtist() (string, error) {
 				parts = append(parts, s)
 			}
 		}
-		return strings.Join(parts, ", "), nil
+		return strings.Join(parts, ", ")
 	default:
-		return "", nil
+		return ""
 	}
+}
+
+func extractStringKey(meta map[string]dbus.Variant, key string) string {
+	if v, ok := meta[key]; ok {
+		if s, ok := v.Value().(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+// ExtractTitle returns the xesam:title string from a metadata map.
+func ExtractTitle(meta map[string]dbus.Variant) string {
+	return extractStringKey(meta, "xesam:title")
+}
+
+// ExtractAlbum returns the xesam:album string from a metadata map.
+func ExtractAlbum(meta map[string]dbus.Variant) string {
+	return extractStringKey(meta, "xesam:album")
+}
+
+// ExtractTrackID returns the mpris:trackid string from a metadata map.
+func ExtractTrackID(meta map[string]dbus.Variant) string {
+	if v, ok := meta["mpris:trackid"]; ok {
+		switch t := v.Value().(type) {
+		case dbus.ObjectPath:
+			return string(t)
+		case string:
+			return t
+		}
+	}
+	return ""
+}
+
+// GetArtist returns a best-effort artist string from metadata.
+func (p *Player) GetArtist() (string, error) {
+	meta, err := p.Metadata()
+	if err != nil {
+		return "", err
+	}
+	return ExtractArtist(meta), nil
 }
 
 func (p *Player) metadataStringKey(key string) (string, error) {
@@ -342,12 +379,7 @@ func (p *Player) metadataStringKey(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if v, ok := meta[key]; ok {
-		if s, ok := v.Value().(string); ok {
-			return s, nil
-		}
-	}
-	return "", nil
+	return extractStringKey(meta, key), nil
 }
 
 // GetTitle returns xesam:title metadata.
@@ -362,15 +394,7 @@ func (p *Player) GetTrackID() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if v, ok := meta["mpris:trackid"]; ok {
-		switch t := v.Value().(type) {
-		case dbus.ObjectPath:
-			return string(t), nil
-		case string:
-			return t, nil
-		}
-	}
-	return "", nil
+	return ExtractTrackID(meta), nil
 }
 
 // WaitForDisappear waits for the player to vanish or timeout.
