@@ -2,15 +2,16 @@ package playerctl
 
 import "strings"
 
-
-
-// PlaybackStatus represents the playback status for a PlayerctlPlayer.
+// PlaybackStatus represents the playback status for a Player.
 type PlaybackStatus int
 
 const (
-	PlaybackStatusPlaying PlaybackStatus = iota // Playing
-	PlaybackStatusPaused                        // Paused
-	PlaybackStatusStopped                       // Stopped
+	// PlaybackStatusPlaying indicates active playback.
+	PlaybackStatusPlaying PlaybackStatus = iota
+	// PlaybackStatusPaused indicates playback is paused.
+	PlaybackStatusPaused
+	// PlaybackStatusStopped indicates playback has stopped.
+	PlaybackStatusStopped
 )
 
 // String returns the string representation of the PlaybackStatus.
@@ -31,9 +32,12 @@ func (s PlaybackStatus) String() string {
 type LoopStatus int
 
 const (
-	LoopStatusNone     LoopStatus = iota // The playback will stop when there are no more tracks to play.
-	LoopStatusTrack                      // The current track will start again from the beginning once it has finished playing.
-	LoopStatusPlaylist                   // The playlist will start again from the beginning once it has finished playing.
+	// LoopStatusNone means playback stops when no tracks remain.
+	LoopStatusNone LoopStatus = iota
+	// LoopStatusTrack means the current track repeats.
+	LoopStatusTrack
+	// LoopStatusPlaylist means the active playlist repeats.
+	LoopStatusPlaylist
 )
 
 // String returns the string representation of the LoopStatus.
@@ -54,9 +58,12 @@ func (s LoopStatus) String() string {
 type Source int
 
 const (
-	SourceNone        Source = iota // Only for uninitialized players. Source will be chosen automatically.
-	SourceDBusSession               // The player is on the DBus session bus.
-	SourceDBusSystem                // The player is on the DBus system bus.
+	// SourceNone is used for uninitialized players; source is chosen automatically.
+	SourceNone Source = iota
+	// SourceDBusSession selects the D-Bus session bus.
+	SourceDBusSession
+	// SourceDBusSystem selects the D-Bus system bus.
+	SourceDBusSystem
 )
 
 // String returns the string representation of the Source.

@@ -1,29 +1,25 @@
 name: playerctl
-base: core18
-version: '2.2.1+git'
-summary: Media player command-line controller
+base: core22
+version: '0.1.0'
+summary: Media player command-line controller (Go port)
 description: |
-  Playerctl is a command-line utility and library for controlling media players
-  that implement the MPRIS D-Bus Interface Specification. Playerctl makes it
-  easy to bind player actions, such as play and pause, to media keys. You can
-  also get metadata about the playing track such as the artist and title for
-  integration into statusline generators or other command-line tools.
+  Go port of Playerctl for controlling media players that implement
+  the MPRIS D-Bus Interface Specification.
 
 grade: devel
 confinement: strict
 
 parts:
   playerctl:
-    plugin: meson
-    source: https://github.com/altdesktop/playerctl
-    source-type: git
-    meson-parameters:
-      - -Dintrospection=false
-      - -Dgtk-doc=false
-    build-packages:
-      - libglib2.0-dev
-    stage-packages:
-      - libglib2.0-0
+    plugin: go
+    source: .
+    build-snaps:
+      - go
+    override-build: |
+      craftctl default
+      go build -o "$CRAFT_PART_INSTALL/bin/playerctl" ./cmd/playerctl
+      go build -o "$CRAFT_PART_INSTALL/bin/playerctld" ./cmd/playerctld
+      install -Dm644 data/org.mpris.MediaPlayer2.playerctld.service.in "$CRAFT_PART_INSTALL/usr/share/dbus-1/services/org.mpris.MediaPlayer2.playerctld.service"
 
 slots:
   dbus-svc:
@@ -37,13 +33,11 @@ slots:
 
 apps:
   playerctl:
-    command: playerctl
-    slots: [ system-observe, desktop-legacy ]
-    environment:
-      LD_LIBRARY_PATH: $SNAP/usr/local/lib/$SNAPCRAFT_ARCH_TRIPLET
+    command: bin/playerctl
+    plugs: [ network, desktop, desktop-legacy ]
 
   playerctld:
-    command: playerctld
-    slots: [ dbus-svc, system-observe, desktop-legacy ]
-    environment:
-      LD_LIBRARY_PATH: $SNAP/usr/local/lib/$SNAPCRAFT_ARCH_TRIPLET
+    command: bin/playerctld
+    daemon: simple
+    slots: [ dbus-svc ]
+    plugs: [ network, desktop, desktop-legacy ]

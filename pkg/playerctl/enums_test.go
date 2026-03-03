@@ -65,11 +65,16 @@ func TestParsePlaybackStatus(t *testing.T) {
 		ok       bool
 	}{
 		{"Playing", PlaybackStatusPlaying, true},
+		{"PLAYING", PlaybackStatusPlaying, true},
 		{"playing", PlaybackStatusPlaying, true},
 		{"Paused", PlaybackStatusPaused, true},
+		{"PAUSED", PlaybackStatusPaused, true},
 		{"paused", PlaybackStatusPaused, true},
 		{"Stopped", PlaybackStatusStopped, true},
+		{"STOPPED", PlaybackStatusStopped, true},
 		{"stopped", PlaybackStatusStopped, true},
+		{"", PlaybackStatusStopped, false},
+		{" playing", PlaybackStatusStopped, false},
 		{"Unknown", PlaybackStatusStopped, false},
 	}
 
@@ -90,11 +95,16 @@ func TestParseLoopStatus(t *testing.T) {
 		ok       bool
 	}{
 		{"None", LoopStatusNone, true},
+		{"NONE", LoopStatusNone, true},
 		{"none", LoopStatusNone, true},
 		{"Track", LoopStatusTrack, true},
+		{"TRACK", LoopStatusTrack, true},
 		{"track", LoopStatusTrack, true},
 		{"Playlist", LoopStatusPlaylist, true},
+		{"PLAYLIST", LoopStatusPlaylist, true},
 		{"playlist", LoopStatusPlaylist, true},
+		{"", LoopStatusNone, false},
+		{" none", LoopStatusNone, false},
 		{"Unknown", LoopStatusNone, false},
 	}
 

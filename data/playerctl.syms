@@ -1,9 +1,0 @@
-{
-    global:
-        Playerctl*;
-        PLAYERCTL*;
-        playerctl_*;
-        pctl_*;
-    local:
-        *;
-};

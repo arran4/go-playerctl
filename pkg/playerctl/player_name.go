@@ -57,8 +57,8 @@ func StringInstanceCompare(name, instance string) int {
 		len(instance) > len(name) &&
 		strings.HasPrefix(instance[len(name):], ".")) ||
 		(strings.HasPrefix(name, instance) &&
-		len(name) > len(instance) &&
-		strings.HasPrefix(name[len(instance):], ".")))
+			len(name) > len(instance) &&
+			strings.HasPrefix(name[len(instance):], ".")))
 
 	if exactMatch || instanceMatch {
 		return 0
