@@ -8,9 +8,9 @@ before:
     - go test ./...
 
 builds:
-  - id: playerctl
-    main: ./cmd/playerctl
-    binary: playerctl
+  - id: goplayerctl
+    main: ./cmd/goplayerctl
+    binary: goplayerctl
     env:
       - CGO_ENABLED=0
     goos: [linux, darwin, windows]
