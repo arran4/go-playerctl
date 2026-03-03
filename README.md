@@ -8,14 +8,14 @@ A Go port of Playerctl for controlling MPRIS-compatible media players over D-Bus
 
 ```bash
 go test ./...
-go run ./cmd/playerctl --version
+go run ./cmd/goplayerctl --version
 go run ./cmd/playerctld --version
 ```
 
 ## CLI usage (`playerctl`)
 
 ```bash
-go run ./cmd/playerctl [flags] <command>
+go run ./cmd/goplayerctl [flags] <command>
 ```
 
 ### Supported flags
@@ -43,16 +43,16 @@ go run ./cmd/playerctl [flags] <command>
 
 ```bash
 # list players
-go run ./cmd/playerctl --list-all
+go run ./cmd/goplayerctl --list-all
 
 # query status for one player
-go run ./cmd/playerctl --player vlc status
+go run ./cmd/goplayerctl --player vlc status
 
 # query metadata for all players with formatted output
-go run ./cmd/playerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
+go run ./cmd/goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
 
 # follow status changes
-go run ./cmd/playerctl --player spotify --follow status
+go run ./cmd/goplayerctl --player spotify --follow status
 ```
 
 ## Daemon usage (`playerctld`)
@@ -133,7 +133,7 @@ func main() {
 Example:
 
 ```bash
-go run ./cmd/playerctl --player spotify --format '{{ emoji .status }} {{ default .title "(none)" }}' status
+go run ./cmd/goplayerctl --player spotify --format '{{ emoji .status }} {{ default .title "(none)" }}' status
 ```
 
 ## Documentation and references
