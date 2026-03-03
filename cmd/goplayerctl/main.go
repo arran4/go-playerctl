@@ -66,7 +66,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd := strings.ToLower(remaining[0])
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
-		"next": {}, "previous": {}, "status": {}, "metadata": {},
+		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -78,13 +78,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	instances := selectInstances(*playerArg, *ignoreArg, *allPlayers)
-	if len(instances) == 0 {
+	if len(instances) == 0 && cmd != "tui" {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
 	}
 	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers}
 	if opts.follow {
 		return followCommand(cmd, instances, stdout, stderr, opts)
+	}
+
+	if cmd == "tui" {
+		return runTUI(instances, stdout, stderr, opts)
 	}
 
 	for _, instance := range instances {
