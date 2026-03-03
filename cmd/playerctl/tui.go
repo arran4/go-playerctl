@@ -96,7 +96,7 @@ func (m *tuiModel) refreshPlayers() {
 
 		var currentInstance string
 		if len(m.players) > 0 && m.cursor >= 0 && m.cursor < len(m.players) {
-		    currentInstance = m.players[m.cursor]
+			currentInstance = m.players[m.cursor]
 		}
 
 		m.players = newPlayers
@@ -104,16 +104,16 @@ func (m *tuiModel) refreshPlayers() {
 		// Try to keep cursor on the same instance
 		found := false
 		if currentInstance != "" {
-            for i, p := range m.players {
-                if p == currentInstance {
-                    m.cursor = i
-                    found = true
-                    break
-                }
-            }
+			for i, p := range m.players {
+				if p == currentInstance {
+					m.cursor = i
+					found = true
+					break
+				}
+			}
 		}
 		if !found {
-		    m.cursor = 0
+			m.cursor = 0
 		}
 	}
 }
@@ -166,8 +166,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "r": // Refresh players manually
-		    m.refreshPlayers()
-		    m.updateCurrentPlayerInfo()
+			m.refreshPlayers()
+			m.updateCurrentPlayerInfo()
 		}
 	case tickMsg:
 		// Instead of synchronously updating, we could return a tea.Cmd here if it was a complex app.
@@ -218,17 +218,17 @@ func (m tuiModel) View() string {
 }
 
 func runTUI(instances []string, stdout, stderr io.Writer, opts cliOptions) int {
-    if len(instances) == 0 {
-        // If instances is empty, it means we probably need to fetch all players
-        manager, err := newPlayerManger(playerctl.SourceNone)
-        if err != nil {
-            fmt.Fprintf(stderr, "failed to get players: %v\n", err)
-            return 1
-        }
-        for _, n := range manager.PlayerNames() {
-            instances = append(instances, n.Instance)
-        }
-    }
+	if len(instances) == 0 {
+		// If instances is empty, it means we probably need to fetch all players
+		manager, err := newPlayerManger(playerctl.SourceNone)
+		if err != nil {
+			fmt.Fprintf(stderr, "failed to get players: %v\n", err)
+			return 1
+		}
+		for _, n := range manager.PlayerNames() {
+			instances = append(instances, n.Instance)
+		}
+	}
 	p := tea.NewProgram(initialModel(instances), tea.WithOutput(stdout))
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(stderr, "Error running TUI: %v\n", err)
