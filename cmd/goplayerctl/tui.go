@@ -20,19 +20,36 @@ func tickCmd() tea.Cmd {
 }
 
 type tuiModel struct {
-	players  []string
-	cursor   int
-	status   string
-	metadata string
-	err      error
+	players       []string
+	cursor        int
+	status        string
+	metadata      string
+	controlScheme string
+	position      int64
+	length        int64
+	err           error
 }
+
+var controlSchemes = []string{"arrow", "vim", "winamp", "emacs"}
 
 func initialModel(instances []string) tuiModel {
 	m := tuiModel{
-		players: instances,
+		players:       instances,
+		controlScheme: "arrow",
 	}
 	m.updateCurrentPlayerInfo()
 	return m
+}
+
+func (m *tuiModel) cycleControlScheme() {
+	for i, scheme := range controlSchemes {
+		if scheme == m.controlScheme {
+			next := (i + 1) % len(controlSchemes)
+			m.controlScheme = controlSchemes[next]
+			return
+		}
+	}
+	m.controlScheme = "arrow"
 }
 
 func (m *tuiModel) updateCurrentPlayerInfo() {
@@ -83,6 +100,30 @@ func (m *tuiModel) updateCurrentPlayerInfo() {
 	if m.metadata == "" {
 		m.metadata = "No metadata"
 	}
+
+	pos, err := p.Position()
+	if err == nil {
+		m.position = pos
+	} else {
+		m.position = 0
+	}
+
+	m.length = 0
+	meta, err := p.Metadata()
+	if err == nil {
+		if v, ok := meta["mpris:length"]; ok {
+			switch t := v.Value().(type) {
+			case int64:
+				m.length = t
+			case uint64:
+				m.length = int64(t)
+			case int32:
+				m.length = int64(t)
+			case float64:
+				m.length = int64(t)
+			}
+		}
+	}
 }
 
 func (m *tuiModel) refreshPlayers() {
@@ -125,49 +166,18 @@ func (m tuiModel) Init() tea.Cmd {
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
+		key := msg.String()
+		switch key {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-				m.updateCurrentPlayerInfo()
-			}
-		case "down", "j":
-			if m.cursor < len(m.players)-1 {
-				m.cursor++
-				m.updateCurrentPlayerInfo()
-			}
-		case " ": // Play/Pause
-			if len(m.players) > 0 {
-				p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
-				if err == nil {
-					p.PlayPause()
-					p.Close()
-					m.updateCurrentPlayerInfo()
-				}
-			}
-		case "right", "l": // Next
-			if len(m.players) > 0 {
-				p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
-				if err == nil {
-					p.Next()
-					p.Close()
-					m.updateCurrentPlayerInfo()
-				}
-			}
-		case "left", "h": // Previous
-			if len(m.players) > 0 {
-				p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
-				if err == nil {
-					p.Previous()
-					p.Close()
-					m.updateCurrentPlayerInfo()
-				}
-			}
-		case "r": // Refresh players manually
+		case "r":
 			m.refreshPlayers()
 			m.updateCurrentPlayerInfo()
+		case "tab", "s":
+			m.cycleControlScheme()
+		default:
+			action := m.mapKeyEvent(key)
+			m.handleAction(action)
 		}
 	case tickMsg:
 		// Instead of synchronously updating, we could return a tea.Cmd here if it was a complex app.
@@ -179,6 +189,162 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+type tuiAction string
+
+const (
+	actionUp        tuiAction = "up"
+	actionDown      tuiAction = "down"
+	actionPlayPause tuiAction = "playpause"
+	actionPause     tuiAction = "pause"
+	actionStop      tuiAction = "stop"
+	actionNext      tuiAction = "next"
+	actionPrev      tuiAction = "prev"
+	actionNone      tuiAction = "none"
+)
+
+func (m *tuiModel) mapKeyEvent(key string) tuiAction {
+	switch m.controlScheme {
+	case "arrow":
+		switch key {
+		case "up":
+			return actionUp
+		case "down":
+			return actionDown
+		case " ":
+			return actionPlayPause
+		case "left":
+			return actionPrev
+		case "right":
+			return actionNext
+		}
+	case "vim":
+		switch key {
+		case "k":
+			return actionUp
+		case "j":
+			return actionDown
+		case " ":
+			return actionPlayPause
+		case "h":
+			return actionPrev
+		case "l":
+			return actionNext
+		}
+	case "winamp":
+		switch key {
+		case "up":
+			return actionUp
+		case "down":
+			return actionDown
+		case "z":
+			return actionPrev
+		case "x":
+			return actionPlayPause
+		case "c":
+			return actionPause
+		case "v":
+			return actionStop
+		case "b":
+			return actionNext
+		}
+	case "emacs":
+		switch key {
+		case "p":
+			return actionUp
+		case "n":
+			return actionDown
+		case " ":
+			return actionPlayPause
+		case "b":
+			return actionPrev
+		case "f":
+			return actionNext
+		}
+	}
+	return actionNone
+}
+
+func (m *tuiModel) handleAction(action tuiAction) {
+	switch action {
+	case actionUp:
+		if m.cursor > 0 {
+			m.cursor--
+			m.updateCurrentPlayerInfo()
+		}
+	case actionDown:
+		if m.cursor < len(m.players)-1 {
+			m.cursor++
+			m.updateCurrentPlayerInfo()
+		}
+	case actionPlayPause:
+		if len(m.players) > 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				p.PlayPause()
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	case actionPause:
+		if len(m.players) > 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				p.Pause()
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	case actionStop:
+		if len(m.players) > 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				p.Stop()
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	case actionNext:
+		if len(m.players) > 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				p.Next()
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	case actionPrev:
+		if len(m.players) > 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				p.Previous()
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	}
+}
+
+var (
+	titleStyle = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	boxStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#874BFD")).
+		Padding(0, 1).
+		Width(40)
+
+	selectedItemStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#01FAC6")).
+		Bold(true)
+
+	itemStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#8A8A8A"))
+)
+
 func (m tuiModel) View() string {
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v\n", m.err)
@@ -186,33 +352,67 @@ func (m tuiModel) View() string {
 
 	var b strings.Builder
 
-	b.WriteString("Media Players (use ↑/↓ to navigate, space to play/pause, ←/→ for prev/next, r to refresh):\n\n")
+	b.WriteString(titleStyle.Render("Go Playerctl TUI"))
+	b.WriteString(fmt.Sprintf(" [Scheme: %s (press tab to change)]\n\n", m.controlScheme))
 
+	playersBox := ""
 	for i, player := range m.players {
-		cursor := " "
 		if m.cursor == i {
-			cursor = ">"
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true).Render(fmt.Sprintf("%s %s\n", cursor, player)))
+			playersBox += selectedItemStyle.Render("> " + player) + "\n"
 		} else {
-			b.WriteString(fmt.Sprintf("%s %s\n", cursor, player))
+			playersBox += itemStyle.Render("  " + player) + "\n"
 		}
 	}
-
-	b.WriteString("\n")
-
-	if len(m.players) > 0 {
-		b.WriteString(lipgloss.NewStyle().Underline(true).Render("Status:"))
-		b.WriteString(fmt.Sprintf(" %s\n\n", m.status))
-
-		b.WriteString(lipgloss.NewStyle().Underline(true).Render("Metadata:"))
-		b.WriteString("\n")
-		b.WriteString(m.metadata)
-		b.WriteString("\n")
-	} else {
-		b.WriteString("No players available.\n")
+	if len(m.players) == 0 {
+		playersBox = "No players available.\n"
 	}
+	playersBoxStr := boxStyle.Render(playersBox)
 
-	b.WriteString("\nPress 'q' to quit.\n")
+	metaBox := ""
+	if len(m.players) > 0 {
+		metaBox += lipgloss.NewStyle().Underline(true).Render("Status:") + " " + m.status + "\n\n"
+		metaBox += lipgloss.NewStyle().Underline(true).Render("Metadata:") + "\n" + m.metadata + "\n"
+
+		if m.length > 0 && m.status != "Stopped" {
+			metaBox += "\n"
+			width := 36
+			filled := int((float64(m.position) / float64(m.length)) * float64(width))
+			if filled > width {
+				filled = width
+			} else if filled < 0 {
+				filled = 0
+			}
+			empty := width - filled
+
+			bar := lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Render(strings.Repeat("█", filled)) +
+				lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", empty))
+
+			posSec := time.Duration(m.position/1000) * time.Millisecond
+			lenSec := time.Duration(m.length/1000) * time.Millisecond
+
+			metaBox += fmt.Sprintf("%s\n%s / %s", bar, posSec.Round(time.Second), lenSec.Round(time.Second))
+		}
+	} else {
+		metaBox = "No metadata\n"
+	}
+	metaBoxStr := boxStyle.Render(metaBox)
+
+	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, playersBoxStr, metaBoxStr))
+	b.WriteString("\n\n")
+
+	keysHelp := ""
+	switch m.controlScheme {
+	case "arrow":
+		keysHelp = "↑/↓: navigate • ←/→: prev/next • space: play/pause"
+	case "vim":
+		keysHelp = "k/j: navigate • h/l: prev/next • space: play/pause"
+	case "winamp":
+		keysHelp = "↑/↓: navigate • z/b: prev/next • x/c/v: play/pause/stop"
+	case "emacs":
+		keysHelp = "p/n: navigate • b/f: prev/next • space: play/pause"
+	}
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • r: refresh • q: quit"))
+	b.WriteString("\n")
 
 	return b.String()
 }
