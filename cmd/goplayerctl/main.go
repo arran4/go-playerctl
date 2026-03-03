@@ -1,5 +1,7 @@
 package main
 
+//go:generate md2man -in ../../doc/playerctl-go.1.md -out ../../doc/goplayerctl.1
+
 import (
 	"flag"
 	"fmt"

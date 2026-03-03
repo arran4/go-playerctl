@@ -6,7 +6,7 @@ playerctl-go - control MPRIS media players from the Go port CLI
 
 # SYNOPSIS
 
-`go run ./cmd/goplayerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND`
+`goplayerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND`
 
 # DESCRIPTION
 
@@ -34,6 +34,25 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 - `--follow-interval`: polling interval (default: 1s).
 - `--version`: print version string.
 
+# EXAMPLES
+
+```bash
+# list players
+goplayerctl --list-all
+
+# query status for one player
+goplayerctl --player vlc status
+
+# query metadata for all players with formatted output
+goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
+
+# query metadata for a player showing artist, album, and title
+goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
+
+# follow status changes
+goplayerctl --player spotify --follow status
+```
+
 # FORMAT FUNCTIONS
 
 - `lc`, `uc`
@@ -46,4 +65,4 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 
 # SEE ALSO
 
-`README.md`, `docs/final_acceptance_checklist.md`, `cmd/goplayerctl/main.go`
+`README.md`, `cmd/goplayerctl/main.go`
