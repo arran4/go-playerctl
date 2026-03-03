@@ -2,7 +2,7 @@
 
 A Go port of Playerctl for controlling MPRIS-compatible media players over D-Bus.
 
-> Status: **Go-complete baseline**. Core CLI, daemon, and library are implemented in Go. See docs in `docs/` for stability policy, acceptance checklist, and intentional deviations.
+> Status: **Go-complete baseline**. Core CLI, daemon, and library are implemented in Go.
 
 ## Installation
 
@@ -152,9 +152,6 @@ go run ./cmd/goplayerctl --player spotify --format '{{ emoji .status }} {{ defau
 
 ## Documentation and references
 
-- API stability policy: `docs/api_stability.md`
-- Final acceptance checklist: `docs/final_acceptance_checklist.md`
-- Intentional deviations: `docs/intentional_deviations.md`
 - Legacy doc sources currently in tree:
   - `doc/playerctl.1.in`
   - `doc/reference/playerctl-docs.xml`

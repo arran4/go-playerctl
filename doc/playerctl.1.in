@@ -1,13 +1,13 @@
 .Dd @PLAYERCTL_RELEASE_DATE@
-.Dt PLAYERCTL 1
+.Dt GOPLAYERCTL 1
 .Os
 .Sh NAME
-.Nm playerctl
+.Nm goplayerctl
 .Nd control media players via MPRIS
 .Sh SYNOPSIS
 .Nm
 .Op Fl aFhlV
-.Op Fl f Ar FORMAT
+.Op Fl -format Ar FORMAT
 .Op Fl i Ar NAME
 .Op Fl p Ar NAME
 .Cm command
@@ -176,7 +176,7 @@ and
 commands can be controlled using a format string.
 Variables set by these commands can be included in the format string
 by enclosing them in curly braces:
-.Ql Brq Brq Va var .
+.Ql Brq Brq Va .var .
 These will then be expanded on output.
 .Pp
 Each command has access to the following variables:
@@ -216,7 +216,7 @@ The title of the current track.
 Helper functions are also available to transform expanded variables into
 other representations.
 They are called in the form
-.Ql Brq Brq Fn func var .
+.Ql Brq Brq Fn func .var .
 The helper functions are as follows:
 .Bl -tag -width Ds
 .It Fn lc str
@@ -273,8 +273,8 @@ Print the player name,
 playback status in lowercase,
 and position and length in human readable form:
 .Bd -literal -offset indent
-$ playerctl metadata --format '{{playerName}}: {{lc(status)}} '\e
-\&'{{duration(position)}}|{{duration(mpris:length)}}'
+$ goplayerctl metadata --format '{{.playerName}}: {{lc .status}} '\e
+\&'{{duration .position}}|{{duration (index . "mpris:length")}}'
 .Ed
 .Sh SEE ALSO
 .Rs
