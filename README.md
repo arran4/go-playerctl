@@ -11,7 +11,7 @@ You can download pre-compiled binaries for your platform from the [GitHub Releas
 Alternatively, you can install from source using `go install`:
 
 ```bash
-go install github.com/arran4/go-playerctl/cmd/playerctl@latest
+go install github.com/arran4/go-playerctl/cmd/goplayerctl@latest
 go install github.com/arran4/go-playerctl/cmd/playerctld@latest
 ```
 
@@ -63,7 +63,7 @@ go run ./cmd/goplayerctl --player vlc status
 go run ./cmd/goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
 
 # query metadata for a player showing artist, album, and title
-go run ./cmd/playerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
+go run ./cmd/goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
 
 # follow status changes
 go run ./cmd/goplayerctl --player spotify --follow status
