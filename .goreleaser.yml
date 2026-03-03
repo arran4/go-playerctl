@@ -36,6 +36,25 @@ archives:
       - data/goplayerctl.bash
       - data/goplayerctl.zsh
 
+snapcrafts:
+  - name: playerctl
+    summary: Media player command-line controller (Go port)
+    description: |
+      Go port of Playerctl for controlling media players that implement
+      the MPRIS D-Bus Interface Specification.
+    grade: devel
+    confinement: strict
+    base: core22
+    builds:
+      - goplayerctl
+    apps:
+      goplayerctl:
+        command: goplayerctl
+        plugs:
+          - network
+          - desktop
+          - desktop-legacy
+
 checksum:
   name_template: checksums.txt
 
