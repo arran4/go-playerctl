@@ -77,7 +77,7 @@ func NewFormatter(format string) (*Formatter, error) {
 					return ""
 				}
 			},
-			"trunc":         helperTrunc,
+			"trunc": helperTrunc,
 		}).
 		Option("missingkey=zero").
 		Parse(format)
