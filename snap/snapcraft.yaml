@@ -18,17 +18,8 @@ parts:
     override-build: |
       craftctl default
       go build -o "$CRAFT_PART_INSTALL/bin/goplayerctl" ./cmd/goplayerctl
-      go build -o "$CRAFT_PART_INSTALL/bin/playerctld" ./cmd/playerctld
-      sed -e "s|@application_id@|org.mpris.MediaPlayer2.playerctld|g" \
-          -e "s|@prefix@/@bindir@|/snap/playerctl/current/bin|g" \
-          data/org.mpris.MediaPlayer2.playerctld.service.in > "$CRAFT_PART_INSTALL/org.mpris.MediaPlayer2.playerctld.service"
-      install -Dm644 "$CRAFT_PART_INSTALL/org.mpris.MediaPlayer2.playerctld.service" "$CRAFT_PART_INSTALL/usr/share/dbus-1/services/org.mpris.MediaPlayer2.playerctld.service"
 
 slots:
-  dbus-svc:
-    interface: dbus
-    bus: session
-    name: org.mpris.MediaPlayer2.playerctld
   system-observe:
     interface: system-observe
   desktop-legacy:
@@ -37,10 +28,4 @@ slots:
 apps:
   goplayerctl:
     command: bin/goplayerctl
-    plugs: [ network, desktop, desktop-legacy ]
-
-  playerctld:
-    command: bin/playerctld
-    daemon: simple
-    slots: [ dbus-svc ]
     plugs: [ network, desktop, desktop-legacy ]
