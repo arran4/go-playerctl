@@ -21,6 +21,7 @@ type cliOptions struct {
 	follow     bool
 	followTick time.Duration
 	allPlayers bool
+	indent     string
 }
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -37,6 +38,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	format := fs.String("format", "", "output format template")
 	follow := fs.Bool("follow", false, "follow output updates")
 	followInterval := fs.Duration("follow-interval", time.Second, "follow polling interval")
+	indent := fs.String("indent", "", "indent string for JSON output (e.g. '  ' or '\\t')")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -66,7 +68,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd := strings.ToLower(remaining[0])
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
-		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {},
+		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "dump": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -82,13 +84,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
 	}
-	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers}
+	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent}
 	if opts.follow {
 		return followCommand(cmd, instances, stdout, stderr, opts)
 	}
 
 	if cmd == "tui" {
 		return runTUI(instances, stdout, stderr, opts)
+	}
+
+	if cmd == "dump" {
+		return runDump(instances, stdout, stderr, opts)
 	}
 
 	for _, instance := range instances {
