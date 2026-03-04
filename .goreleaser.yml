@@ -16,14 +16,6 @@ builds:
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
 
-  - id: playerctld
-    main: ./cmd/playerctld
-    binary: playerctld
-    env:
-      - CGO_ENABLED=0
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-
 archives:
   - id: default
     formats: [tar.gz]

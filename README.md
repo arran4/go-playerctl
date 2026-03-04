@@ -12,7 +12,6 @@ Alternatively, you can install from source using `go install`:
 
 ```bash
 go install github.com/arran4/go-playerctl/cmd/goplayerctl@latest
-go install github.com/arran4/go-playerctl/cmd/playerctld@latest
 ```
 
 ## Quick start
@@ -20,7 +19,7 @@ go install github.com/arran4/go-playerctl/cmd/playerctld@latest
 ```bash
 go test ./...
 goplayerctl --version
-playerctld --version
+goplayerctl daemon --version
 ```
 
 ## CLI usage (`goplayerctl`)
@@ -69,18 +68,18 @@ goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - 
 goplayerctl --player spotify --follow status
 ```
 
-## TUI usage (`playerctl tui`)
+## TUI usage (`goplayerctl tui`)
 
 ![tui-1.png](docs/tui-1.png)
 
 ```bash
-go run ./cmd/playerctld [flags]
+go run ./cmd/goplayerctl tui [flags]
 ```
 
-## Daemon usage (`playerctld`)
+## Daemon usage (`goplayerctl daemon`)
 
 ```bash
-playerctld [flags]
+goplayerctl daemon [flags]
 ```
 
 ### Supported flags
