@@ -10,18 +10,18 @@ import (
 )
 
 func TestDaemonVersionAndInitFailure(t *testing.T) {
-	orig := newManager
-	defer func() { newManager = orig }()
+	orig := newPlayerManger
+	defer func() { newPlayerManger = orig }()
 
 	var out, errOut bytes.Buffer
-	if code := run([]string{"--version"}, &out, &errOut); code != 0 {
+	if code := runDaemon([]string{"--version"}, &out, &errOut); code != 0 {
 		t.Fatalf("version failed: code=%d", code)
 	}
 
-	newManager = func(source playerctl.Source) (*playerctl.PlayerManager, error) { return nil, errors.New("boom") }
+	newPlayerManger = func(source playerctl.Source) (*playerctl.PlayerManager, error) { return nil, errors.New("boom") }
 	out.Reset()
 	errOut.Reset()
-	if code := run([]string{"--once"}, &out, &errOut); code != 1 || !strings.Contains(errOut.String(), "daemon init failed") {
+	if code := runDaemon([]string{"--once"}, &out, &errOut); code != 1 || !strings.Contains(errOut.String(), "daemon init failed") {
 		t.Fatalf("expected init failure code=1: got %d err=%q", code, errOut.String())
 	}
 }

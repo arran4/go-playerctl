@@ -110,7 +110,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd := strings.ToLower(remaining[0])
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
-		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {},
+		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -119,6 +119,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if *follow && cmd != "status" && cmd != "metadata" {
 		fmt.Fprintln(stderr, "--follow is only supported for status and metadata")
 		return 2
+	}
+
+	if cmd == "daemon" {
+		return runDaemon(remaining[1:], stdout, stderr)
 	}
 
 	instances := selectInstances(*playerArg, *ignoreArg, *allPlayers)

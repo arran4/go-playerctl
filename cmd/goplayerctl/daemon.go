@@ -16,7 +16,6 @@ import (
 )
 
 var (
-	newManager       = playerctl.NewPlayerManager
 	connectSessionDB = dbus.ConnectSessionBus
 )
 
@@ -26,9 +25,7 @@ const (
 	serviceIface = "com.github.altdesktop.playerctld"
 )
 
-func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
-
-func run(args []string, stdout, stderr io.Writer) int {
+func runDaemon(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("playerctld", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	version := fs.Bool("version", false, "print version")
@@ -79,7 +76,7 @@ type daemon struct {
 }
 
 func newDaemon(interval time.Duration) (*daemon, error) {
-	m, err := newManager(playerctl.SourceNone)
+	m, err := newPlayerManger(playerctl.SourceNone)
 	if err != nil {
 		return nil, err
 	}
