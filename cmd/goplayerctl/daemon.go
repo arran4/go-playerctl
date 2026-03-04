@@ -16,6 +16,7 @@ import (
 )
 
 var (
+
 	connectSessionDB = dbus.ConnectSessionBus
 )
 
@@ -24,6 +25,8 @@ const (
 	servicePath  = "/org/mpris/MediaPlayer2"
 	serviceIface = "com.github.altdesktop.playerctld"
 )
+
+
 
 func runDaemon(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("playerctld", flag.ContinueOnError)
