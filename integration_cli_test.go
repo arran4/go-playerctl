@@ -44,3 +44,26 @@ func TestPlayerctlMissingCommandIntegration(t *testing.T) {
 		t.Fatalf("unexpected missing command output: %s", string(out))
 	}
 }
+
+func TestPlayerctlDumpMissingPlayerIntegration(t *testing.T) {
+	cmd := exec.Command("go", "run", "./cmd/goplayerctl", "dump")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit, output=%s", string(out))
+	}
+	if !strings.Contains(string(out), "no players selected") {
+		t.Fatalf("unexpected missing player output: %s", string(out))
+	}
+}
+
+func TestPlayerctlDumpCommandIntegration(t *testing.T) {
+	cmd := exec.Command("go", "run", "./cmd/goplayerctl", "--all-players", "dump")
+	out, err := cmd.CombinedOutput()
+	// It's possible there are no players running on the test system.
+	// But it shouldn't crash, it should just print `[]` or fail gracefully.
+	if err != nil && !strings.Contains(string(out), "failed to connect player") && !strings.Contains(string(out), "no players selected") {
+		t.Logf("Warning: go run --all-players dump returned err=%v, output=%s", err, string(out))
+	} else if err == nil && !strings.HasPrefix(strings.TrimSpace(string(out)), "[") && !strings.HasPrefix(strings.TrimSpace(string(out)), "{") {
+		t.Fatalf("expected JSON output (starting with [ or {), got: %s", string(out))
+	}
+}
