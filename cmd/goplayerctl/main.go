@@ -18,6 +18,9 @@ import (
 //go:embed template_help.tmpl
 var templateHelp string
 
+//go:embed usage.tmpl
+var usageHelp string
+
 var (
 	newPlayer       = playerctl.NewPlayer
 	newPlayerManger = playerctl.NewPlayerManager
@@ -30,6 +33,36 @@ type cliOptions struct {
 	allPlayers bool
 	indent     string
 	tuiScheme  string
+}
+
+func printUsageHelp(stdout io.Writer) {
+	tmpl, err := template.New("usage").Parse(usageHelp)
+	if err != nil {
+		fmt.Fprintf(stdout, "Error parsing usage help: %v\n", err)
+		return
+	}
+	progName := "goplayerctl"
+	if len(os.Args) > 0 {
+		progName = os.Args[0]
+		// extract base name
+		if idx := strings.LastIndexByte(progName, '/'); idx >= 0 {
+			progName = progName[idx+1:]
+		} else if idx := strings.LastIndexByte(progName, '\\'); idx >= 0 {
+			progName = progName[idx+1:]
+		}
+	}
+
+	// Ensure we're called via go test where os.Args isn't helpful, so default back to "goplayerctl" if it's main.test or similar
+	if strings.Contains(progName, "test") {
+		progName = "goplayerctl"
+	}
+
+	err = tmpl.Execute(stdout, map[string]string{
+		"ProgramName": progName,
+	})
+	if err != nil {
+		fmt.Fprintf(stdout, "Error executing usage help: %v\n", err)
+	}
 }
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -67,6 +100,10 @@ func printTemplateHelp(stdout io.Writer) {
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("playerctl", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+
+	fs.Usage = func() {
+		printUsageHelp(stderr)
+	}
 
 	playerArg := fs.String("player", "", "comma-separated player instances to control")
 	ignoreArg := fs.String("ignore-player", "", "comma-separated player instances to ignore")
