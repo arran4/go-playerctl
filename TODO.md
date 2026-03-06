@@ -8,6 +8,8 @@
 - [ ] Expose standard MPRIS and Xesam metadata keys (`mpris:trackid`, `mpris:artUrl`, `xesam:audioBPM`, etc.) to templates and output.
 - [ ] Expose `position`, `volume`, `loopStatus`, `shuffle`, and `rate` variables to format templates.
 - [ ] Expose tracklist and playlist information (e.g., active playlist name, track counts) as format template variables.
+- [ ] Add helper template functions for interacting with and displaying tracklists and playlists clearly.
+- [ ] Add robust examples to README, help menus, and documentation showing how to effectively output tracklist and playlist data.
 
 ## CLI Commands
 - [ ] Implement `loop` command to get or set loop status.
@@ -22,4 +24,5 @@
 - [ ] **TrackList Interface**: Expose TrackList methods (GetTracksMetadata, AddTrack, RemoveTrack, GoTo) and signals to the underlying D-Bus API.
 - [ ] **Playlists Interface**: Expose ActivatePlaylist, GetPlaylists, and signals to the underlying D-Bus API.
 - [ ] **TUI Enhancement**: Add a `p` for playlist mode that shows all tracks allowing navigation via full screen supporting pages, paging, and tables.
-- [ ] **TUI Enhancement**: Support multiple playlists in TUI.
+- [ ] **TUI Enhancement**: Add a `t` for tracklist mode that shows the current playing tracklist allowing navigation via full screen supporting pages, paging, and tables.
+- [ ] **TUI Enhancement**: Support multiple playlists and tracklist in TUI.
