@@ -1,0 +1,34 @@
+Usage: {{.ProgramName}} [OPTION...] COMMAND
+
+For true players only: vlc, mpv, RhythmBox, web browsers, cmus, mpd, spotify and others.
+
+Commands:
+  play           Command the player to play
+  pause          Command the player to pause
+  play-pause     Command the player to toggle between play/pause
+  stop           Command the player to stop
+  next           Command the player to skip to the next track
+  previous       Command the player to skip to the previous track
+  position       [OFFSET][+/-] Command the player to go to the position or seek forward/backward OFFSET in seconds
+  volume         [LEVEL][+/-] Print or set the volume to LEVEL from 0.0 to 1.0
+  status         Get the play status of the player
+  metadata       [KEY] Get metadata information for the current track. Print all metadata if KEY is omitted.
+  open           [URI] Command for the player to open given URI
+  loop           [STATUS] Print or set the loop status. Can be "None", "Track", or "Playlist".
+  shuffle        [STATUS] Print or set the shuffle status. Can be "On", "Off", or "Toggle".
+  dump           Dump the raw metadata payload.
+  tui            Enter the experimental text user interface.
+
+Options:
+  --player=NAME           A comma separated list of names of players to control. Wildcards are supported.
+  --ignore-player=NAME    A comma separated list of names of players to ignore. Wildcards are supported.
+  --all-players           Control all available players
+  --list-all              List the names of running players that can be controlled
+  --format=FORMAT         A format string for printing properties and metadata
+  --follow                Block and append lines to output when the status changes
+  --follow-interval=DURATION Polling interval for follow mode.
+  --indent=STRING         Indent string for JSON output (e.g. '  ' or '\t').
+  --tui-scheme=SCHEME     Select a keybinding scheme for the text user interface (tui). Options are: arrow, vim, winamp, emacs.
+  --template-help         Print detailed help for format templates and exit.
+  --version               Print version information and exit
+  -h, --help              Show this help message and exit
