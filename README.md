@@ -49,6 +49,11 @@ goplayerctl [flags] <command>
 - `previous`
 - `status`
 - `metadata`
+- `loop [status]`
+- `shuffle [on|off|toggle]`
+- `volume [level]`
+- `position [offset]`
+- `open <uri>`
 
 ### Examples
 

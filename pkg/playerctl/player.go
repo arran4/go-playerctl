@@ -230,6 +230,9 @@ func (p *Player) Volume() (float64, error) { var v float64; return v, p.getPrope
 // Position returns current track position in microseconds.
 func (p *Player) Position() (int64, error) { var v int64; return v, p.getProperty("Position", &v) }
 
+// Rate returns the player's playback rate.
+func (p *Player) Rate() (float64, error) { var v float64; return v, p.getProperty("Rate", &v) }
+
 // Metadata returns metadata map values.
 func (p *Player) Metadata() (map[string]dbus.Variant, error) {
 	var meta map[string]dbus.Variant
@@ -294,6 +297,11 @@ func (p *Player) SetLoopStatus(status LoopStatus) error {
 // SetShuffle toggles shuffle mode.
 func (p *Player) SetShuffle(enabled bool) error {
 	return p.setProperty("Shuffle", dbus.MakeVariant(enabled))
+}
+
+// SetRate sets the playback rate.
+func (p *Player) SetRate(rate float64) error {
+	return p.setProperty("Rate", dbus.MakeVariant(rate))
 }
 
 func (p *Player) setProperty(name string, value dbus.Variant) error {
