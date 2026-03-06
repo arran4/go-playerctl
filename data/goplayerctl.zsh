@@ -58,6 +58,7 @@ _arguments -S -s\
 	'(-v --version)'{-v,--version}'[Print version information and quit]' \
 	'(-l --list-all)'{-l,--list-all}'[List all available players]' \
 	'(-F, --follow)'{-F,--follow}'[Bock and append the query to output when it changes]' \
+	'(--tui-scheme)'{--tui-scheme=}'[TUI control scheme]:scheme:(arrow vim winamp emacs)' \
 	'(-f --format)'{-f,--format=}'[Format string for printing properties and metadata]' \
 	'(-i --ignore-player)'{-i,--ignore-player=}'[Comma separated list of players to ignore]:players:_sequence _goplayerctl_players' \
 	'(-a --all-players)'{-a,--all-players}'[Control all players instead of just the first]' \

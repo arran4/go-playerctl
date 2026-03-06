@@ -27,15 +27,27 @@ type tuiModel struct {
 	controlScheme string
 	position      int64
 	length        int64
+	volume        float64
 	err           error
+	width         int
+	height        int
 }
 
 var controlSchemes = []string{"arrow", "vim", "winamp", "emacs"}
 
-func initialModel(instances []string) tuiModel {
+func initialModel(instances []string, defaultScheme string) tuiModel {
+	scheme := "arrow"
+	for _, s := range controlSchemes {
+		if s == defaultScheme {
+			scheme = s
+			break
+		}
+	}
+
 	m := tuiModel{
 		players:       instances,
-		controlScheme: "arrow",
+		controlScheme: scheme,
+		volume:        -1.0,
 	}
 	m.updateCurrentPlayerInfo()
 	return m
@@ -124,6 +136,13 @@ func (m *tuiModel) updateCurrentPlayerInfo() {
 			}
 		}
 	}
+
+	vol, err := p.Volume()
+	if err == nil {
+		m.volume = vol
+	} else {
+		m.volume = -1.0
+	}
 }
 
 func (m *tuiModel) refreshPlayers() {
@@ -165,6 +184,9 @@ func (m tuiModel) Init() tea.Cmd {
 
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	case tea.KeyMsg:
 		key := msg.String()
 		switch key {
@@ -173,7 +195,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			m.refreshPlayers()
 			m.updateCurrentPlayerInfo()
-		case "tab", "s":
+		case "alt+s":
 			m.cycleControlScheme()
 		default:
 			action := m.mapKeyEvent(key)
@@ -192,17 +214,26 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 type tuiAction string
 
 const (
-	actionUp        tuiAction = "up"
-	actionDown      tuiAction = "down"
-	actionPlayPause tuiAction = "playpause"
-	actionPause     tuiAction = "pause"
-	actionStop      tuiAction = "stop"
-	actionNext      tuiAction = "next"
-	actionPrev      tuiAction = "prev"
-	actionNone      tuiAction = "none"
+	actionUp         tuiAction = "up"
+	actionDown       tuiAction = "down"
+	actionPlayPause  tuiAction = "playpause"
+	actionPause      tuiAction = "pause"
+	actionStop       tuiAction = "stop"
+	actionNext       tuiAction = "next"
+	actionPrev       tuiAction = "prev"
+	actionNone       tuiAction = "none"
+	actionVolumeUp   tuiAction = "volume_up"
+	actionVolumeDown tuiAction = "volume_down"
 )
 
 func (m *tuiModel) mapKeyEvent(key string) tuiAction {
+	switch key {
+	case "+", "=":
+		return actionVolumeUp
+	case "-", "_":
+		return actionVolumeDown
+	}
+
 	switch m.controlScheme {
 	case "arrow":
 		switch key {
@@ -321,6 +352,32 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				m.updateCurrentPlayerInfo()
 			}
 		}
+	case actionVolumeUp:
+		if len(m.players) > 0 && m.volume >= 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				newVol := m.volume + 0.05
+				if newVol > 1.0 {
+					newVol = 1.0
+				}
+				p.SetVolume(newVol)
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	case actionVolumeDown:
+		if len(m.players) > 0 && m.volume >= 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				newVol := m.volume - 0.05
+				if newVol < 0.0 {
+					newVol = 0.0
+				}
+				p.SetVolume(newVol)
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
 	}
 }
 
@@ -334,8 +391,7 @@ var (
 	boxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#874BFD")).
-			Padding(0, 1).
-			Width(40)
+			Padding(0, 1)
 
 	selectedItemStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#01FAC6")).
@@ -353,7 +409,16 @@ func (m tuiModel) View() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render("Go Playerctl TUI"))
-	b.WriteString(fmt.Sprintf(" [Scheme: %s (press tab to change)]\n\n", m.controlScheme))
+	b.WriteString(fmt.Sprintf(" [Scheme: %s (press alt+s to change)]\n\n", m.controlScheme))
+
+	boxWidth := 40
+	if m.width > 0 {
+		calculated := (m.width / 2) - 4
+		if calculated > 40 {
+			boxWidth = calculated
+		}
+	}
+	currentBoxStyle := boxStyle.Width(boxWidth)
 
 	playersBox := ""
 	for i, player := range m.players {
@@ -366,23 +431,30 @@ func (m tuiModel) View() string {
 	if len(m.players) == 0 {
 		playersBox = "No players available.\n"
 	}
-	playersBoxStr := boxStyle.Render(playersBox)
+	playersBoxStr := currentBoxStyle.Render(playersBox)
 
 	metaBox := ""
 	if len(m.players) > 0 {
 		metaBox += lipgloss.NewStyle().Underline(true).Render("Status:") + " " + m.status + "\n\n"
 		metaBox += lipgloss.NewStyle().Underline(true).Render("Metadata:") + "\n" + m.metadata + "\n"
 
+		if m.volume >= 0 {
+			metaBox += fmt.Sprintf("Volume: %.0f%%\n", m.volume*100)
+		}
+
 		if m.length > 0 && m.status != "Stopped" {
 			metaBox += "\n"
-			width := 36
-			filled := int((float64(m.position) / float64(m.length)) * float64(width))
-			if filled > width {
-				filled = width
+			progressBarWidth := boxWidth - 4
+			if progressBarWidth < 10 {
+				progressBarWidth = 10
+			}
+			filled := int((float64(m.position) / float64(m.length)) * float64(progressBarWidth))
+			if filled > progressBarWidth {
+				filled = progressBarWidth
 			} else if filled < 0 {
 				filled = 0
 			}
-			empty := width - filled
+			empty := progressBarWidth - filled
 
 			bar := lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Render(strings.Repeat("█", filled)) +
 				lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", empty))
@@ -395,7 +467,7 @@ func (m tuiModel) View() string {
 	} else {
 		metaBox = "No metadata\n"
 	}
-	metaBoxStr := boxStyle.Render(metaBox)
+	metaBoxStr := currentBoxStyle.Render(metaBox)
 
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, playersBoxStr, metaBoxStr))
 	b.WriteString("\n\n")
@@ -411,7 +483,7 @@ func (m tuiModel) View() string {
 	case "emacs":
 		keysHelp = "p/n: navigate • b/f: prev/next • space: play/pause"
 	}
-	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • r: refresh • q: quit"))
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • +/-: volume • r: refresh • q: quit"))
 	b.WriteString("\n")
 
 	return b.String()
@@ -429,7 +501,7 @@ func runTUI(instances []string, stdout, stderr io.Writer, opts cliOptions) int {
 			instances = append(instances, n.Instance)
 		}
 	}
-	p := tea.NewProgram(initialModel(instances), tea.WithOutput(stdout))
+	p := tea.NewProgram(initialModel(instances, opts.tuiScheme), tea.WithOutput(stdout))
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(stderr, "Error running TUI: %v\n", err)
 		return 1

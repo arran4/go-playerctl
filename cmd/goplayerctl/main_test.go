@@ -40,6 +40,13 @@ func TestRunValidationAndVersion(t *testing.T) {
 	if code != 2 || !strings.Contains(errOut.String(), "unknown command") {
 		t.Fatalf("unknown command check failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
 	}
+
+	out.Reset()
+	errOut.Reset()
+	code = run([]string{"--template-help"}, &out, &errOut)
+	if code != 0 || !strings.Contains(out.String(), "Format strings use standard Go `text/template` syntax.") {
+		t.Fatalf("template help failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
 }
 
 func TestRunConnectionFailure(t *testing.T) {

@@ -1,15 +1,22 @@
 package main
 
+//go:generate md2man -in ../../doc/playerctl-go.1.md -out ../../doc/goplayerctl.1
+
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/arran4/go-playerctl/pkg/playerctl"
 )
+
+//go:embed template_help.tmpl
+var templateHelp string
 
 var (
 	newPlayer       = playerctl.NewPlayer
@@ -22,9 +29,40 @@ type cliOptions struct {
 	followTick time.Duration
 	allPlayers bool
 	indent     string
+	tuiScheme  string
 }
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
+
+func printTemplateHelp(stdout io.Writer) {
+	tmpl, err := template.New("help").Parse(templateHelp)
+	if err != nil {
+		fmt.Fprintf(stdout, "Error parsing template help: %v\n", err)
+		return
+	}
+	progName := "goplayerctl"
+	if len(os.Args) > 0 {
+		progName = os.Args[0]
+		// extract base name
+		if idx := strings.LastIndexByte(progName, '/'); idx >= 0 {
+			progName = progName[idx+1:]
+		} else if idx := strings.LastIndexByte(progName, '\\'); idx >= 0 {
+			progName = progName[idx+1:]
+		}
+	}
+
+	// Ensure we're called via go test where os.Args isn't helpful, so default back to "goplayerctl" if it's main.test or similar
+	if strings.Contains(progName, "test") {
+		progName = "goplayerctl"
+	}
+
+	err = tmpl.Execute(stdout, map[string]string{
+		"ProgramName": progName,
+	})
+	if err != nil {
+		fmt.Fprintf(stdout, "Error executing template help: %v\n", err)
+	}
+}
 
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("playerctl", flag.ContinueOnError)
@@ -36,15 +74,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 	listAll := fs.Bool("list-all", false, "list all available players")
 	version := fs.Bool("version", false, "print version")
 	format := fs.String("format", "", "output format template")
+	templateHelpFlag := fs.Bool("template-help", false, "print template help and exit")
 	follow := fs.Bool("follow", false, "follow output updates")
 	followInterval := fs.Duration("follow-interval", time.Second, "follow polling interval")
 	indent := fs.String("indent", "", "indent string for JSON output (e.g. '  ' or '\\t')")
+	tuiScheme := fs.String("tui-scheme", "arrow", "TUI control scheme (arrow, vim, winamp, emacs)")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if *version {
 		fmt.Fprintln(stdout, "go-playerctl (port in progress)")
+		return 0
+	}
+	if *templateHelpFlag {
+		printTemplateHelp(stdout)
 		return 0
 	}
 	if *listAll {
@@ -68,7 +112,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd := strings.ToLower(remaining[0])
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
-		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "dump": {},
+		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "dump": {}, "daemon": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -79,12 +123,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	if cmd == "daemon" {
+		return runDaemon(remaining[1:], stdout, stderr)
+	}
+
 	instances := selectInstances(*playerArg, *ignoreArg, *allPlayers)
 	if len(instances) == 0 && cmd != "tui" {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
 	}
-	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent}
+	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent, tuiScheme: *tuiScheme}
 	if opts.follow {
 		return followCommand(cmd, instances, stdout, stderr, opts)
 	}
@@ -198,12 +246,15 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 		}
 		ctx["status"] = status.String()
 	case "metadata":
-		title, err := p.GetTitle()
+		meta, err := p.Metadata()
 		if err != nil {
 			return "", err
 		}
-		artist, _ := p.GetArtist()
-		album, _ := p.GetAlbum()
+
+		title := playerctl.ExtractTitle(meta)
+		artist := playerctl.ExtractArtist(meta)
+		album := playerctl.ExtractAlbum(meta)
+
 		ctx["title"], ctx["artist"], ctx["album"] = title, artist, album
 	}
 	if opts.format == "" {
