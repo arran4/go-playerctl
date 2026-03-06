@@ -101,6 +101,7 @@ func TestPlayerPropertyAndCommandWithFakeBusObject(t *testing.T) {
 		"org.mpris.MediaPlayer2.Player.Shuffle":        dbus.MakeVariant(true),
 		"org.mpris.MediaPlayer2.Player.Volume":         dbus.MakeVariant(0.5),
 		"org.mpris.MediaPlayer2.Player.Position":       dbus.MakeVariant(int64(42)),
+		"org.mpris.MediaPlayer2.Player.Rate":           dbus.MakeVariant(1.5),
 		"org.mpris.MediaPlayer2.Player.Metadata": dbus.MakeVariant(map[string]dbus.Variant{
 			"xesam:title":   dbus.MakeVariant("Title"),
 			"xesam:album":   dbus.MakeVariant("Album"),
@@ -124,6 +125,9 @@ func TestPlayerPropertyAndCommandWithFakeBusObject(t *testing.T) {
 	}
 	if pos, err := p.Position(); err != nil || pos != 42 {
 		t.Fatalf("position %v %v", pos, err)
+	}
+	if rate, err := p.Rate(); err != nil || rate != 1.5 {
+		t.Fatalf("rate %v %v", rate, err)
 	}
 	if title, _ := p.GetTitle(); title != "Title" {
 		t.Fatalf("title %q", title)

@@ -112,7 +112,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd := strings.ToLower(remaining[0])
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
-		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "dump": {}, "daemon": {},
+		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {},
+		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -154,7 +155,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 			}
 			continue
 		}
-		if code := runCommand(cmd, p, stdout, stderr, opts); code != 0 {
+		var cmdArgs []string
+		if len(remaining) > 1 {
+			cmdArgs = remaining[1:]
+		}
+
+		if code := runCommand(cmd, p, stdout, stderr, opts, cmdArgs); code != 0 {
 			p.Close()
 			if !*allPlayers {
 				return code
@@ -238,6 +244,7 @@ func selectInstances(playerArg, ignoreArg string, allPlayers bool) []string {
 
 func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, error) {
 	ctx := map[string]string{"player": p.Instance()}
+
 	switch cmd {
 	case "status":
 		status, err := p.PlaybackStatus()
@@ -250,6 +257,11 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 		if err != nil {
 			return "", err
 		}
+		for k, v := range meta {
+			if v.Value() != nil {
+				ctx[k] = fmt.Sprintf("%v", v.Value())
+			}
+		}
 
 		title := playerctl.ExtractTitle(meta)
 		artist := playerctl.ExtractArtist(meta)
@@ -257,11 +269,35 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 
 		ctx["title"], ctx["artist"], ctx["album"] = title, artist, album
 	}
+
+	// Always populate properties for templates if possible, ignoring errors
+	if loopStatus, err := p.LoopStatus(); err == nil {
+		ctx["loopStatus"] = loopStatus.String()
+	}
+	if shuffle, err := p.Shuffle(); err == nil {
+		ctx["shuffle"] = fmt.Sprintf("%v", shuffle)
+	}
+	if volume, err := p.Volume(); err == nil {
+		ctx["volume"] = fmt.Sprintf("%f", volume)
+	}
+	if position, err := p.Position(); err == nil {
+		ctx["position"] = fmt.Sprintf("%d", position)
+	}
+	if rate, err := p.Rate(); err == nil {
+		ctx["rate"] = fmt.Sprintf("%f", rate)
+	}
+
 	if opts.format == "" {
 		if cmd == "status" {
-			return ctx["status"], nil
+			if s, ok := ctx["status"]; ok {
+				return s, nil
+			}
+			return "", nil
 		}
-		return ctx["title"], nil
+		if t, ok := ctx["title"]; ok {
+			return t, nil
+		}
+		return "", nil
 	}
 	f, err := playerctl.NewFormatter(opts.format)
 	if err != nil {
@@ -270,7 +306,7 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 	return f.Expand(ctx)
 }
 
-func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts cliOptions) int {
+func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts cliOptions, remainingArgs []string) int {
 	write := func(v string) {
 		if opts.allPlayers {
 			fmt.Fprintf(stdout, "%s %s\n", p.Instance(), v)
@@ -311,6 +347,203 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 			return 1
 		}
 		write(line)
+	case "loop":
+		if len(remainingArgs) > 0 {
+			status, ok := playerctl.ParseLoopStatus(remainingArgs[0])
+			if !ok {
+				fmt.Fprintln(stderr, "invalid loop status")
+				return 1
+			}
+			if err := p.SetLoopStatus(status); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+		} else {
+			status, err := p.LoopStatus()
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+			write(status.String())
+		}
+	case "shuffle":
+		if len(remainingArgs) > 0 {
+			arg := strings.ToLower(remainingArgs[0])
+			var enable bool
+			if arg == "on" || arg == "true" || arg == "1" {
+				enable = true
+			} else if arg == "off" || arg == "false" || arg == "0" {
+				enable = false
+			} else if arg == "toggle" {
+				current, err := p.Shuffle()
+				if err != nil {
+					fmt.Fprintln(stderr, err)
+					return 1
+				}
+				enable = !current
+			} else {
+				fmt.Fprintln(stderr, "invalid shuffle status")
+				return 1
+			}
+			if err := p.SetShuffle(enable); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+		} else {
+			status, err := p.Shuffle()
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+			if status {
+				write("On")
+			} else {
+				write("Off")
+			}
+		}
+	case "volume":
+		if len(remainingArgs) > 0 {
+			var vol float64
+			var err error
+			arg := remainingArgs[0]
+			relative := false
+			isMinus := false
+			if strings.HasPrefix(arg, "+") {
+				relative = true
+				arg = arg[1:]
+			} else if strings.HasPrefix(arg, "-") {
+				relative = true
+				isMinus = true
+				arg = arg[1:]
+			}
+			_, err = fmt.Sscanf(arg, "%f", &vol)
+			if err != nil {
+				fmt.Fprintln(stderr, "invalid volume level")
+				return 1
+			}
+			if relative {
+				current, err := p.Volume()
+				if err != nil {
+					fmt.Fprintln(stderr, err)
+					return 1
+				}
+				if isMinus {
+					vol = current - vol
+				} else {
+					vol = current + vol
+				}
+			}
+			if vol < 0 {
+				vol = 0
+			} else if vol > 1.0 {
+				vol = 1.0
+			}
+			if err := p.SetVolume(vol); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+		} else {
+			vol, err := p.Volume()
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+			write(fmt.Sprintf("%f", vol))
+		}
+	case "position":
+		if len(remainingArgs) > 0 {
+			var pos float64
+			var err error
+			arg := remainingArgs[0]
+			relative := false
+			isMinus := false
+			if strings.HasPrefix(arg, "+") {
+				relative = true
+				arg = arg[1:]
+			} else if strings.HasPrefix(arg, "-") {
+				relative = true
+				isMinus = true
+				arg = arg[1:]
+			}
+
+			// Try to parse as format like "1:30" or "02:45:00" or just seconds "90"
+			duration, parseErr := time.ParseDuration(arg + "s")
+			if parseErr != nil {
+				// Also support simpler float parsing if time.ParseDuration fails for some reason
+				_, err = fmt.Sscanf(arg, "%f", &pos)
+				if err != nil {
+					fmt.Fprintln(stderr, "invalid position offset")
+					return 1
+				}
+				duration = time.Duration(pos * float64(time.Second))
+			}
+
+			offsetMicro := duration.Microseconds()
+
+			if relative {
+				current, err := p.Position()
+				if err != nil {
+					fmt.Fprintln(stderr, err)
+					return 1
+				}
+				if isMinus {
+					offsetMicro = current - offsetMicro
+				} else {
+					offsetMicro = current + offsetMicro
+				}
+			} else if isMinus {
+				offsetMicro = -offsetMicro
+			}
+
+			if offsetMicro < 0 {
+				offsetMicro = 0
+			}
+
+			// Determine if we need to call Seek or SetPosition
+			// Wait, Seek uses relative offset in microseconds.
+			// SetPosition uses TrackId and absolute position.
+			if relative {
+				var seekOffset int64
+				if isMinus {
+					seekOffset = -duration.Microseconds()
+				} else {
+					seekOffset = duration.Microseconds()
+				}
+				if err := p.Seek(seekOffset); err != nil {
+					fmt.Fprintln(stderr, err)
+					return 1
+				}
+			} else {
+				trackId, err := p.GetTrackID()
+				if err != nil || trackId == "" {
+					fmt.Fprintln(stderr, "could not determine track id for absolute seek")
+					return 1
+				}
+				if err := p.SetPosition(trackId, offsetMicro); err != nil {
+					fmt.Fprintln(stderr, err)
+					return 1
+				}
+			}
+
+		} else {
+			pos, err := p.Position()
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+			// Output in microseconds to match playerctl, or format as seconds?
+			// playerctl outputs float seconds.
+			write(fmt.Sprintf("%f", float64(pos)/1000000.0))
+		}
+	case "open":
+		if len(remainingArgs) == 0 {
+			fmt.Fprintln(stderr, "missing URI for open command")
+			return 1
+		}
+		if err := p.OpenUri(remainingArgs[0]); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
 	}
 	return 0
 }
