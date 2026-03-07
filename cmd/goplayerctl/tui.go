@@ -9,6 +9,7 @@ import (
 	"github.com/arran4/go-playerctl/pkg/playerctl"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/godbus/dbus/v5"
 )
 
 type tickMsg time.Time
@@ -32,6 +33,16 @@ type tuiModel struct {
 	err           error
 	width         int
 	height        int
+
+	viewMode         string // "main", "playlist", "tracklist"
+	playlistItems    []string
+	playlistIds      []string
+	playlistIcons    []string
+	activePlaylistId string
+	trackTitles      []string
+	trackArtists     []string
+	trackIds         []string
+	listCursor       int
 }
 
 var controlSchemes = []string{"arrow", "vim", "winamp", "emacs"}
@@ -54,6 +65,7 @@ func initialModel(instances []string, defaultScheme string) tuiModel {
 		players:       instances,
 		controlScheme: scheme,
 		volume:        -1.0,
+		viewMode:      "main",
 	}
 	m.updateCurrentPlayerInfo()
 	return m
@@ -89,6 +101,9 @@ func (m *tuiModel) updateCurrentPlayerInfo() {
 	if err != nil {
 		m.status = "Error connecting"
 		m.metadata = err.Error()
+		m.playlistItems = nil
+		m.trackTitles = nil
+		m.trackArtists = nil
 		return
 	}
 	defer p.Close()
@@ -117,6 +132,58 @@ func (m *tuiModel) updateCurrentPlayerInfo() {
 	m.metadata = strings.Join(parts, "\n")
 	if m.metadata == "" {
 		m.metadata = "No metadata"
+	}
+
+	// Fetch playlists
+	if active, err := p.ActivePlaylist(); err == nil && active.Valid {
+		m.activePlaylistId = string(active.Playlist.Id)
+	} else {
+		m.activePlaylistId = ""
+	}
+
+	if count, err := p.PlaylistCount(); err == nil && count > 0 {
+		if pls, err := p.GetPlaylists(0, count, "Alphabetical", false); err == nil {
+			m.playlistItems = make([]string, len(pls))
+			m.playlistIds = make([]string, len(pls))
+			m.playlistIcons = make([]string, len(pls))
+			for i, pl := range pls {
+				m.playlistItems[i] = pl.Name
+				m.playlistIds[i] = string(pl.Id)
+				m.playlistIcons[i] = pl.Icon
+			}
+		}
+	} else {
+		m.playlistItems = nil
+		m.playlistIds = nil
+		m.playlistIcons = nil
+	}
+
+	// Fetch tracks
+	if hasTrackList, err := p.HasTrackList(); err == nil && hasTrackList {
+		if tracks, err := p.Tracks(); err == nil && len(tracks) > 0 {
+			m.trackTitles = make([]string, len(tracks))
+			m.trackArtists = make([]string, len(tracks))
+			m.trackIds = make([]string, len(tracks))
+			if metas, err := p.GetTracksMetadata(tracks); err == nil {
+				for i, meta := range metas {
+					trTitle := playerctl.ExtractTitle(meta)
+					trArtist := playerctl.ExtractArtist(meta)
+					if trTitle == "" {
+						trTitle = string(tracks[i])
+					}
+					if trArtist == "" {
+						trArtist = "Unknown"
+					}
+					m.trackTitles[i] = trTitle
+					m.trackArtists[i] = trArtist
+					m.trackIds[i] = string(tracks[i])
+				}
+			}
+		}
+	} else {
+		m.trackTitles = nil
+		m.trackArtists = nil
+		m.trackIds = nil
 	}
 
 	pos, err := p.Position()
@@ -211,6 +278,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Instead of synchronously updating, we could return a tea.Cmd here if it was a complex app.
 		// For now, since this is a relatively fast D-Bus call to local services, it's tolerable in the main loop.
 		// However, returning it as a command would be better. We'll do a simple synchronous update here for simplicity.
+		m.refreshPlayers()
 		m.updateCurrentPlayerInfo()
 		return m, tickCmd()
 	}
@@ -220,19 +288,23 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 type tuiAction string
 
 const (
-	actionUp           tuiAction = "up"
-	actionDown         tuiAction = "down"
-	actionPlayPause    tuiAction = "playpause"
-	actionPause        tuiAction = "pause"
-	actionStop         tuiAction = "stop"
-	actionNext         tuiAction = "next"
-	actionPrev         tuiAction = "prev"
-	actionNone         tuiAction = "none"
-	actionVolumeUp     tuiAction = "volume_up"
-	actionVolumeDown   tuiAction = "volume_down"
-	actionCycleJump    tuiAction = "cycle_jump"
-	actionSeekForward  tuiAction = "seek_forward"
-	actionSeekBackward tuiAction = "seek_backward"
+	actionUp              tuiAction = "up"
+	actionDown            tuiAction = "down"
+	actionEnter           tuiAction = "enter"
+	actionPlayPause       tuiAction = "playpause"
+	actionPause           tuiAction = "pause"
+	actionStop            tuiAction = "stop"
+	actionNext            tuiAction = "next"
+	actionPrev            tuiAction = "prev"
+	actionNone            tuiAction = "none"
+	actionVolumeUp        tuiAction = "volume_up"
+	actionVolumeDown      tuiAction = "volume_down"
+	actionCycleJump       tuiAction = "cycle_jump"
+	actionSeekForward     tuiAction = "seek_forward"
+	actionSeekBackward    tuiAction = "seek_backward"
+	actionTogglePlaylist  tuiAction = "toggle_playlist"
+	actionToggleTracklist tuiAction = "toggle_tracklist"
+	actionBack            tuiAction = "back"
 )
 
 func (m *tuiModel) mapKeyEvent(key string) tuiAction {
@@ -247,6 +319,20 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 		return actionPrev
 	case "]", ">", "pgdown":
 		return actionNext
+	}
+
+	switch key {
+	case "enter", "o":
+		return actionEnter
+	case "esc":
+		return actionBack
+	}
+
+	switch key {
+	case "P":
+		return actionTogglePlaylist
+	case "T":
+		return actionToggleTracklist
 	}
 
 	switch m.controlScheme {
@@ -317,14 +403,54 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 func (m *tuiModel) handleAction(action tuiAction) {
 	switch action {
 	case actionUp:
-		if m.cursor > 0 {
-			m.cursor--
-			m.updateCurrentPlayerInfo()
+		if m.viewMode == "playlist" || m.viewMode == "tracklist" {
+			if m.listCursor > 0 {
+				m.listCursor--
+			}
+		} else {
+			if m.cursor > 0 {
+				m.cursor--
+				m.updateCurrentPlayerInfo()
+			}
 		}
 	case actionDown:
-		if m.cursor < len(m.players)-1 {
-			m.cursor++
-			m.updateCurrentPlayerInfo()
+		if m.viewMode == "playlist" {
+			if m.listCursor < len(m.playlistItems)-1 {
+				m.listCursor++
+			}
+		} else if m.viewMode == "tracklist" {
+			if m.listCursor < len(m.trackTitles)-1 {
+				m.listCursor++
+			}
+		} else {
+			if m.cursor < len(m.players)-1 {
+				m.cursor++
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	case actionEnter:
+		if len(m.players) > 0 {
+			if m.viewMode == "playlist" {
+				if m.listCursor >= 0 && m.listCursor < len(m.playlistIds) {
+					p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+					if err == nil {
+						p.ActivatePlaylist(dbus.ObjectPath(m.playlistIds[m.listCursor]))
+						p.Close()
+						// After activating a playlist, automatically switch to the tracklist to view its contents
+						m.viewMode = "tracklist"
+						m.listCursor = 0
+						m.updateCurrentPlayerInfo()
+					}
+				}
+			} else if m.viewMode == "tracklist" {
+				if m.listCursor >= 0 && m.listCursor < len(m.trackIds) {
+					p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+					if err == nil {
+						p.GoTo(dbus.ObjectPath(m.trackIds[m.listCursor]))
+						p.Close()
+					}
+				}
+			}
 		}
 	case actionPlayPause:
 		if len(m.players) > 0 {
@@ -434,6 +560,24 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				m.updateCurrentPlayerInfo()
 			}
 		}
+	case actionTogglePlaylist:
+		if m.viewMode == "playlist" {
+			m.viewMode = "main"
+		} else {
+			m.viewMode = "playlist"
+			m.listCursor = 0
+			m.updateCurrentPlayerInfo()
+		}
+	case actionToggleTracklist:
+		if m.viewMode == "tracklist" {
+			m.viewMode = "main"
+		} else {
+			m.viewMode = "tracklist"
+			m.listCursor = 0
+			m.updateCurrentPlayerInfo()
+		}
+	case actionBack:
+		m.viewMode = "main"
 	}
 }
 
@@ -476,6 +620,116 @@ func (m tuiModel) View() string {
 		}
 	}
 	currentBoxStyle := boxStyle.Width(boxWidth)
+
+	playerName := "Unknown"
+	if len(m.players) > 0 {
+		playerName = m.players[m.cursor]
+	}
+
+	if m.viewMode == "playlist" {
+		listStr := fmt.Sprintf("%s Playlists:\n\n", playerName)
+		if len(m.playlistItems) > 0 {
+			start := m.listCursor - (m.height/2 - 5)
+			if start < 0 {
+				start = 0
+			}
+			end := start + (m.height - 10)
+			if end > len(m.playlistItems) {
+				end = len(m.playlistItems)
+			}
+
+			listStr += lipgloss.NewStyle().Underline(true).Render(fmt.Sprintf("   %-30s | %-20s | %s", "Name", "ID", "Icon")) + "\n"
+			for i := start; i < end; i++ {
+				plName := m.playlistItems[i]
+				plId := m.playlistIds[i]
+				plIcon := m.playlistIcons[i]
+				isActive := plId == m.activePlaylistId
+
+				if len(plName) > 28 {
+					plName = plName[:27] + "…"
+				}
+				plIdDisplay := plId
+				if len(plIdDisplay) > 18 {
+					plIdDisplay = plIdDisplay[:17] + "…"
+				}
+				if len(plIcon) > 20 {
+					plIcon = plIcon[:19] + "…"
+				}
+
+				prefix := "  "
+				activeMarker := " "
+				if isActive {
+					activeMarker = lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Render("*")
+				}
+				if i == m.listCursor {
+					prefix = "> "
+					plName = selectedItemStyle.Render(fmt.Sprintf("%-30s", plName))
+					plIdDisplay = selectedItemStyle.Render(fmt.Sprintf("%-20s", plIdDisplay))
+					plIcon = selectedItemStyle.Render(plIcon)
+				} else {
+					plName = fmt.Sprintf("%-30s", plName)
+					plIdDisplay = fmt.Sprintf("%-20s", plIdDisplay)
+				}
+				listStr += fmt.Sprintf("%s%s %s | %s | %s\n", prefix, activeMarker, plName, plIdDisplay, plIcon)
+			}
+		} else {
+			listStr += "No playlists available or unsupported.\n"
+		}
+		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStr))
+		b.WriteString("\n\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("↑/↓: scroll • enter/o: play playlist • esc/P: back to main • q: quit"))
+		return b.String()
+	}
+
+	if m.viewMode == "tracklist" {
+		listStr := fmt.Sprintf("%s Tracklist:\n\n", playerName)
+		if len(m.trackTitles) > 0 {
+			start := m.listCursor - (m.height/2 - 5)
+			if start < 0 {
+				start = 0
+			}
+			end := start + (m.height - 10)
+			if end > len(m.trackTitles) {
+				end = len(m.trackTitles)
+			}
+
+			listStr += lipgloss.NewStyle().Underline(true).Render(fmt.Sprintf("   %-30s | %-30s | %s", "Artist", "Title", "ID")) + "\n"
+			for i := start; i < end; i++ {
+				trArtist := m.trackArtists[i]
+				trTitle := m.trackTitles[i]
+				trId := m.trackIds[i]
+
+				if len(trArtist) > 28 {
+					trArtist = trArtist[:27] + "…"
+				}
+				if len(trTitle) > 28 {
+					trTitle = trTitle[:27] + "…"
+				}
+				trIdDisplay := trId
+				if len(trIdDisplay) > 20 {
+					trIdDisplay = trIdDisplay[:19] + "…"
+				}
+
+				prefix := "  "
+				if i == m.listCursor {
+					prefix = "> "
+					trArtist = selectedItemStyle.Render(fmt.Sprintf("%-30s", trArtist))
+					trTitle = selectedItemStyle.Render(fmt.Sprintf("%-30s", trTitle))
+					trIdDisplay = selectedItemStyle.Render(trIdDisplay)
+				} else {
+					trArtist = fmt.Sprintf("%-30s", trArtist)
+					trTitle = fmt.Sprintf("%-30s", trTitle)
+				}
+				listStr += fmt.Sprintf("%s %s | %s | %s\n", prefix, trArtist, trTitle, trIdDisplay)
+			}
+		} else {
+			listStr += "No tracklist available or unsupported.\n"
+		}
+		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStr))
+		b.WriteString("\n\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("↑/↓: scroll • enter: play track • esc/T: back to main • q: quit"))
+		return b.String()
+	}
 
 	playersBox := ""
 	for i, player := range m.players {
@@ -540,7 +794,7 @@ func (m tuiModel) View() string {
 	case "emacs":
 		keysHelp = "p/n: navigate • b/f: seek • space: play/pause"
 	}
-	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • [/]: prev/next track • +/-: vol • r: refresh • q: quit"))
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • [/]: prev/next track • +/-: vol • P/T: playlists/tracklist • r: refresh • q: quit"))
 	b.WriteString("\n")
 
 	return b.String()

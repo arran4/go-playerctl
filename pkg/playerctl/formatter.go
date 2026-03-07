@@ -64,30 +64,41 @@ func NewFormatter(format string) (*Formatter, error) {
 		return nil, FormatError{Message: "empty format template"}
 	}
 
+	// text/template variables cannot contain a colon (e.g. .mpris:artUrl).
+	// We replace ":" with "_" to match the context variables.
+	processedFormat := strings.ReplaceAll(format, ".mpris:", ".mpris_")
+	processedFormat = strings.ReplaceAll(processedFormat, ".xesam:", ".xesam_")
+
 	tmpl, err := template.New("playerctl-format").
 		Funcs(template.FuncMap{
 			"lc":  strings.ToLower,
 			"uc":  strings.ToUpper,
 			"add": func(a, b int) int { return a + b },
 			"sub": func(a, b int) int { return a - b },
-			"default": func(v, fallback string) string {
-				if v == "" {
+			"default": func(v any, fallback string) string {
+				if v == nil {
 					return fallback
 				}
-				return v
+				str, ok := v.(string)
+				if !ok || str == "" {
+					return fallback
+				}
+				return str
 			},
 			"duration":      helperDuration,
 			"markup_escape": html.EscapeString,
 			"emoji":         helperEmoji,
 			"trunc":         helperTrunc,
+			"has_playlist":  func(count string) bool { return count != "" && count != "0" },
+			"has_tracklist": func(count string) bool { return count != "" && count != "0" },
 		}).
 		Option("missingkey=zero").
-		Parse(format)
+		Parse(processedFormat)
 	if err != nil {
 		return nil, FormatError{Message: err.Error()}
 	}
 
-	return &Formatter{raw: format, tmpl: tmpl}, nil
+	return &Formatter{raw: processedFormat, tmpl: tmpl}, nil
 }
 
 // ContainsKey reports whether the template references the provided key.
@@ -100,7 +111,7 @@ func (f *Formatter) ContainsKey(key string) bool {
 }
 
 // Expand substitutes template variables using values from context.
-func (f *Formatter) Expand(context map[string]string) (string, error) {
+func (f *Formatter) Expand(context map[string]any) (string, error) {
 	var b bytes.Buffer
 	if err := f.tmpl.Execute(&b, context); err != nil {
 		return "", FormatError{Message: fmt.Sprintf("template execution failed: %v", err)}

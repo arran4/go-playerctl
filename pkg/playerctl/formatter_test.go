@@ -32,13 +32,13 @@ func TestFormatterExpand(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	got, err := f.Expand(map[string]string{"artist": "Boards of Canada", "title": "Dayvan Cowboy"})
+	got, err := f.Expand(map[string]any{"artist": "Boards of Canada", "title": "Dayvan Cowboy"})
 	if err != nil || got != "Boards of Canada - Dayvan Cowboy" {
 		t.Fatalf("Expand() = %q, err=%v", got, err)
 	}
 
-	got, err = f.Expand(map[string]string{"artist": "Tycho"})
-	if err != nil || got != "Tycho - " {
+	got, err = f.Expand(map[string]any{"artist": "Tycho"})
+	if err != nil || got != "Tycho - <no value>" {
 		t.Fatalf("Expand() missing key = %q, err=%v", got, err)
 	}
 }
@@ -48,7 +48,7 @@ func TestFormatterExpandFuncsAndParseError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got, err := f.Expand(map[string]string{"artist": "nils"})
+	got, err := f.Expand(map[string]any{"artist": "nils"})
 	if err != nil || got != "NILS Untitled" {
 		t.Fatalf("Expand() funcs = %q, err=%v", got, err)
 	}
@@ -63,7 +63,7 @@ func TestFormatterArithmetic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got, err := f.Expand(map[string]string{})
+	got, err := f.Expand(map[string]any{})
 	if err != nil || got != "5 5" {
 		t.Fatalf("arithmetic mismatch got=%q err=%v", got, err)
 	}
@@ -74,7 +74,7 @@ func TestFormatterHelperParityFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got, err := f.Expand(map[string]string{
+	got, err := f.Expand(map[string]any{
 		"d": "125s",
 		"m": `<b>&</b>`,
 		"s": "playing",
