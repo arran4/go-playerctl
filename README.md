@@ -188,6 +188,12 @@ goplayerctl --player spotify --format '{{ emoji .status }} {{ default .title "(n
 
 # Only show playlist if it exists
 goplayerctl --format '{{ if has_playlist .playlistCount }}Active: {{ .activePlaylistName }}{{ else }}No playlist{{ end }}' metadata
+
+# Print current playback rate
+goplayerctl --format 'Rate: {{ .rate }}x' metadata
+
+# Conditionally list tracks only if a tracklist is populated
+goplayerctl --format '{{ if has_tracklist .trackCount }}Tracks:\n{{ range .tracklist }}{{ .title }}\n{{ end }}{{ end }}' metadata
 ```
 
 ## Documentation and references
