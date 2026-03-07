@@ -259,6 +259,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Instead of synchronously updating, we could return a tea.Cmd here if it was a complex app.
 		// For now, since this is a relatively fast D-Bus call to local services, it's tolerable in the main loop.
 		// However, returning it as a command would be better. We'll do a simple synchronous update here for simplicity.
+		m.refreshPlayers()
 		m.updateCurrentPlayerInfo()
 		return m, tickCmd()
 	}
@@ -304,6 +305,8 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 	switch key {
 	case "enter", "o":
 		return actionEnter
+	case "esc":
+		return actionBack
 	}
 
 	switch key {
@@ -326,8 +329,6 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 			return actionSeekBackward
 		case "right":
 			return actionSeekForward
-		case "esc":
-			return actionBack
 		}
 	case "vim":
 		switch key {
@@ -632,11 +633,7 @@ func (m tuiModel) View() string {
 		}
 		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStr))
 		b.WriteString("\n\n")
-		backKey := "P"
-		if m.controlScheme == "arrow" {
-			backKey = "esc/P"
-		}
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(fmt.Sprintf("↑/↓: scroll • enter/o: open & view • %s: back to main • q: quit", backKey)))
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("↑/↓: scroll • enter/o: open & view • esc/P: back to main • q: quit"))
 		return b.String()
 	}
 
@@ -666,11 +663,7 @@ func (m tuiModel) View() string {
 		}
 		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStr))
 		b.WriteString("\n\n")
-		backKey := "T"
-		if m.controlScheme == "arrow" {
-			backKey = "esc/T"
-		}
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(fmt.Sprintf("↑/↓: scroll • enter: switch • %s: back to main • q: quit", backKey)))
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("↑/↓: scroll • enter: switch • esc/T: back to main • q: quit"))
 		return b.String()
 	}
 
