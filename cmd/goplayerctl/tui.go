@@ -284,6 +284,7 @@ const (
 	actionSeekBackward    tuiAction = "seek_backward"
 	actionTogglePlaylist  tuiAction = "toggle_playlist"
 	actionToggleTracklist tuiAction = "toggle_tracklist"
+	actionBack            tuiAction = "back"
 )
 
 func (m *tuiModel) mapKeyEvent(key string) tuiAction {
@@ -325,6 +326,8 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 			return actionSeekBackward
 		case "right":
 			return actionSeekForward
+		case "esc":
+			return actionBack
 		}
 	case "vim":
 		switch key {
@@ -413,6 +416,10 @@ func (m *tuiModel) handleAction(action tuiAction) {
 					if err == nil {
 						p.ActivatePlaylist(dbus.ObjectPath(m.playlistIds[m.listCursor]))
 						p.Close()
+						// After activating a playlist, automatically switch to the tracklist to view its contents
+						m.viewMode = "tracklist"
+						m.listCursor = 0
+						m.updateCurrentPlayerInfo()
 					}
 				}
 			} else if m.viewMode == "tracklist" {
@@ -549,6 +556,8 @@ func (m *tuiModel) handleAction(action tuiAction) {
 			m.listCursor = 0
 			m.updateCurrentPlayerInfo()
 		}
+	case actionBack:
+		m.viewMode = "main"
 	}
 }
 
@@ -592,8 +601,13 @@ func (m tuiModel) View() string {
 	}
 	currentBoxStyle := boxStyle.Width(boxWidth)
 
+	playerName := "Unknown"
+	if len(m.players) > 0 {
+		playerName = m.players[m.cursor]
+	}
+
 	if m.viewMode == "playlist" {
-		listStr := "Playlists:\n\n"
+		listStr := fmt.Sprintf("%s Playlists:\n\n", playerName)
 		if len(m.playlistItems) > 0 {
 			start := m.listCursor - (m.height/2 - 5)
 			if start < 0 {
@@ -618,12 +632,16 @@ func (m tuiModel) View() string {
 		}
 		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStr))
 		b.WriteString("\n\n")
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("↑/↓: scroll • enter: switch • P: back to main • q: quit"))
+		backKey := "P"
+		if m.controlScheme == "arrow" {
+			backKey = "esc/P"
+		}
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(fmt.Sprintf("↑/↓: scroll • enter: switch & view • %s: back to main • q: quit", backKey)))
 		return b.String()
 	}
 
 	if m.viewMode == "tracklist" {
-		listStr := "Tracklist:\n\n"
+		listStr := fmt.Sprintf("%s Tracklist:\n\n", playerName)
 		if len(m.trackItems) > 0 {
 			start := m.listCursor - (m.height/2 - 5)
 			if start < 0 {
@@ -648,7 +666,11 @@ func (m tuiModel) View() string {
 		}
 		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStr))
 		b.WriteString("\n\n")
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("↑/↓: scroll • enter: switch • T: back to main • q: quit"))
+		backKey := "T"
+		if m.controlScheme == "arrow" {
+			backKey = "esc/T"
+		}
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(fmt.Sprintf("↑/↓: scroll • enter: switch • %s: back to main • q: quit", backKey)))
 		return b.String()
 	}
 
