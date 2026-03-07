@@ -28,12 +28,18 @@ type tuiModel struct {
 	position      int64
 	length        int64
 	volume        float64
+	jumpSizeIndex int
 	err           error
 	width         int
 	height        int
 }
 
 var controlSchemes = []string{"arrow", "vim", "winamp", "emacs"}
+var jumpSizes = []int64{5_000_000, 10_000_000, 30_000_000, 60_000_000} // microseconds
+
+func (m *tuiModel) cycleJumpSize() {
+	m.jumpSizeIndex = (m.jumpSizeIndex + 1) % len(jumpSizes)
+}
 
 func initialModel(instances []string, defaultScheme string) tuiModel {
 	scheme := "arrow"
@@ -214,16 +220,19 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 type tuiAction string
 
 const (
-	actionUp         tuiAction = "up"
-	actionDown       tuiAction = "down"
-	actionPlayPause  tuiAction = "playpause"
-	actionPause      tuiAction = "pause"
-	actionStop       tuiAction = "stop"
-	actionNext       tuiAction = "next"
-	actionPrev       tuiAction = "prev"
-	actionNone       tuiAction = "none"
-	actionVolumeUp   tuiAction = "volume_up"
-	actionVolumeDown tuiAction = "volume_down"
+	actionUp           tuiAction = "up"
+	actionDown         tuiAction = "down"
+	actionPlayPause    tuiAction = "playpause"
+	actionPause        tuiAction = "pause"
+	actionStop         tuiAction = "stop"
+	actionNext         tuiAction = "next"
+	actionPrev         tuiAction = "prev"
+	actionNone         tuiAction = "none"
+	actionVolumeUp     tuiAction = "volume_up"
+	actionVolumeDown   tuiAction = "volume_down"
+	actionCycleJump    tuiAction = "cycle_jump"
+	actionSeekForward  tuiAction = "seek_forward"
+	actionSeekBackward tuiAction = "seek_backward"
 )
 
 func (m *tuiModel) mapKeyEvent(key string) tuiAction {
@@ -232,6 +241,12 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 		return actionVolumeUp
 	case "-", "_":
 		return actionVolumeDown
+	case "s":
+		return actionCycleJump
+	case "[", "<", "pgup":
+		return actionPrev
+	case "]", ">", "pgdown":
+		return actionNext
 	}
 
 	switch m.controlScheme {
@@ -244,9 +259,9 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 		case " ":
 			return actionPlayPause
 		case "left":
-			return actionPrev
+			return actionSeekBackward
 		case "right":
-			return actionNext
+			return actionSeekForward
 		}
 	case "vim":
 		switch key {
@@ -257,9 +272,9 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 		case " ":
 			return actionPlayPause
 		case "h":
-			return actionPrev
+			return actionSeekBackward
 		case "l":
-			return actionNext
+			return actionSeekForward
 		}
 	case "winamp":
 		switch key {
@@ -267,6 +282,10 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 			return actionUp
 		case "down":
 			return actionDown
+		case "left":
+			return actionSeekBackward
+		case "right":
+			return actionSeekForward
 		case "z":
 			return actionPrev
 		case "x":
@@ -287,9 +306,9 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 		case " ":
 			return actionPlayPause
 		case "b":
-			return actionPrev
+			return actionSeekBackward
 		case "f":
-			return actionNext
+			return actionSeekForward
 		}
 	}
 	return actionNone
@@ -378,6 +397,43 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				m.updateCurrentPlayerInfo()
 			}
 		}
+	case actionCycleJump:
+		m.cycleJumpSize()
+	case actionSeekForward:
+		if len(m.players) > 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				jumpAmt := jumpSizes[m.jumpSizeIndex]
+				// Try to not seek past the end if we know the length
+				if m.length > 0 && m.position+jumpAmt > m.length {
+					trackId, _ := p.GetTrackID()
+					if trackId != "" {
+						p.SetPosition(trackId, m.length)
+					}
+				} else {
+					p.Seek(jumpAmt)
+				}
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
+	case actionSeekBackward:
+		if len(m.players) > 0 {
+			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
+			if err == nil {
+				jumpAmt := jumpSizes[m.jumpSizeIndex]
+				if m.position-jumpAmt < 0 {
+					trackId, _ := p.GetTrackID()
+					if trackId != "" {
+						p.SetPosition(trackId, 0)
+					}
+				} else {
+					p.Seek(-jumpAmt)
+				}
+				p.Close()
+				m.updateCurrentPlayerInfo()
+			}
+		}
 	}
 }
 
@@ -409,7 +465,8 @@ func (m tuiModel) View() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render("Go Playerctl TUI"))
-	b.WriteString(fmt.Sprintf(" [Scheme: %s (press alt+s to change)]\n\n", m.controlScheme))
+	jumpSecs := jumpSizes[m.jumpSizeIndex] / 1_000_000
+	b.WriteString(fmt.Sprintf(" [Scheme: %s (alt+s)] [Jump: %ds (s)]\n\n", m.controlScheme, jumpSecs))
 
 	boxWidth := 40
 	if m.width > 0 {
@@ -475,15 +532,15 @@ func (m tuiModel) View() string {
 	keysHelp := ""
 	switch m.controlScheme {
 	case "arrow":
-		keysHelp = "↑/↓: navigate • ←/→: prev/next • space: play/pause"
+		keysHelp = "↑/↓: navigate • ←/→: seek • space: play/pause"
 	case "vim":
-		keysHelp = "k/j: navigate • h/l: prev/next • space: play/pause"
+		keysHelp = "k/j: navigate • h/l: seek • space: play/pause"
 	case "winamp":
-		keysHelp = "↑/↓: navigate • z/b: prev/next • x/c/v: play/pause/stop"
+		keysHelp = "↑/↓: navigate • ←/→: seek • z/b: prev/next • x/c/v: play/pause/stop"
 	case "emacs":
-		keysHelp = "p/n: navigate • b/f: prev/next • space: play/pause"
+		keysHelp = "p/n: navigate • b/f: seek • space: play/pause"
 	}
-	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • +/-: volume • r: refresh • q: quit"))
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(keysHelp + " • [/]: prev/next track • +/-: vol • r: refresh • q: quit"))
 	b.WriteString("\n")
 
 	return b.String()
