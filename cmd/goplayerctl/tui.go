@@ -302,7 +302,7 @@ func (m *tuiModel) mapKeyEvent(key string) tuiAction {
 	}
 
 	switch key {
-	case "enter":
+	case "enter", "o":
 		return actionEnter
 	}
 
@@ -636,7 +636,7 @@ func (m tuiModel) View() string {
 		if m.controlScheme == "arrow" {
 			backKey = "esc/P"
 		}
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(fmt.Sprintf("↑/↓: scroll • enter: switch & view • %s: back to main • q: quit", backKey)))
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(fmt.Sprintf("↑/↓: scroll • enter/o: open & view • %s: back to main • q: quit", backKey)))
 		return b.String()
 	}
 
