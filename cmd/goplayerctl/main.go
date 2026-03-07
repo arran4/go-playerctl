@@ -340,7 +340,7 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 				var playlists []map[string]string
 				for _, pl := range pls {
 					playlists = append(playlists, map[string]string{
-						"id": string(pl.Id),
+						"id":   string(pl.Id),
 						"name": pl.Name,
 						"icon": pl.Icon,
 					})
