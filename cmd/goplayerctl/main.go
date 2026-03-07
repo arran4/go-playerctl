@@ -150,7 +150,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {},
-		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {},
+		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "rate": {},
+		"playlist": {}, "tracklist": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -297,6 +298,10 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 		for k, v := range meta {
 			if v.Value() != nil {
 				ctx[k] = fmt.Sprintf("%v", v.Value())
+				// Also provide the key with colons replaced by underscores for use in templates
+				if strings.Contains(k, ":") {
+					ctx[strings.ReplaceAll(k, ":", "_")] = fmt.Sprintf("%v", v.Value())
+				}
 			}
 		}
 
@@ -322,6 +327,17 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 	}
 	if rate, err := p.Rate(); err == nil {
 		ctx["rate"] = fmt.Sprintf("%f", rate)
+	}
+
+	if activePlaylist, err := p.ActivePlaylist(); err == nil && activePlaylist.Valid {
+		ctx["activePlaylistName"] = activePlaylist.Playlist.Name
+		ctx["activePlaylistId"] = string(activePlaylist.Playlist.Id)
+	}
+	if playlistCount, err := p.PlaylistCount(); err == nil {
+		ctx["playlistCount"] = fmt.Sprintf("%d", playlistCount)
+	}
+	if tracks, err := p.Tracks(); err == nil {
+		ctx["trackCount"] = fmt.Sprintf("%d", len(tracks))
 	}
 
 	if opts.format == "" {
@@ -580,6 +596,80 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 		if err := p.OpenUri(remainingArgs[0]); err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1
+		}
+	case "rate":
+		if len(remainingArgs) > 0 {
+			var rate float64
+			var err error
+			arg := remainingArgs[0]
+			_, err = fmt.Sscanf(arg, "%f", &rate)
+			if err != nil {
+				fmt.Fprintln(stderr, "invalid rate level")
+				return 1
+			}
+			if err := p.SetRate(rate); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+		} else {
+			rate, err := p.Rate()
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+			write(fmt.Sprintf("%f", rate))
+		}
+	case "playlist":
+		active, err := p.ActivePlaylist()
+		if err != nil {
+			fmt.Fprintln(stderr, "player does not support playlists or error fetching:", err)
+			return 1
+		}
+		if active.Valid {
+			write(fmt.Sprintf("Active: %s (Id: %s)", active.Playlist.Name, active.Playlist.Id))
+		} else {
+			write("Active: None")
+		}
+
+		count, _ := p.PlaylistCount()
+		write(fmt.Sprintf("Total Playlists: %d", count))
+
+		// In a real scenario we'd query GetPlaylists to show them, but this is enough to close the TODO.
+		if count > 0 {
+			playlists, err := p.GetPlaylists(0, count, "Alphabetical", false)
+			if err == nil {
+				for i, pl := range playlists {
+					write(fmt.Sprintf("  %d: %s (Id: %s)", i, pl.Name, pl.Id))
+				}
+			}
+		}
+	case "tracklist":
+		hasTrackList, err := p.HasTrackList()
+		if err != nil || !hasTrackList {
+			fmt.Fprintln(stderr, "player does not support tracklists")
+			return 1
+		}
+
+		tracks, err := p.Tracks()
+		if err != nil {
+			fmt.Fprintln(stderr, "error fetching tracks:", err)
+			return 1
+		}
+		write(fmt.Sprintf("Total Tracks: %d", len(tracks)))
+
+		// Optionally print metadata for tracks
+		if len(tracks) > 0 {
+			metas, err := p.GetTracksMetadata(tracks)
+			if err == nil {
+				for i, meta := range metas {
+					title := playerctl.ExtractTitle(meta)
+					artist := playerctl.ExtractArtist(meta)
+					if title == "" {
+						title = string(tracks[i])
+					}
+					write(fmt.Sprintf("  %d: %s - %s", i, artist, title))
+				}
+			}
 		}
 	}
 	return 0

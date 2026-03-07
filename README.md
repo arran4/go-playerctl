@@ -53,7 +53,10 @@ goplayerctl [flags] <command>
 - `shuffle [on|off|toggle]`
 - `volume [level]`
 - `position [offset]`
+- `rate [level]`
 - `open <uri>`
+- `playlist`
+- `tracklist`
 
 ### Examples
 
@@ -72,6 +75,9 @@ goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - 
 
 # follow status changes
 goplayerctl --player spotify --follow status
+
+# print active playlist details via template
+goplayerctl --format 'Active Playlist: {{ .activePlaylistName }} ({{ .playlistCount }} total)' metadata
 ```
 
 ## TUI usage (`goplayerctl tui`)
@@ -107,6 +113,16 @@ Methods/properties currently exposed by the Go port:
 - methods: `Shift`, `Unshift`
 - signals emitted: `ActivePlayerChangeBegin`, `ActivePlayerChangeEnd`
 - properties/accessors: `PlayerNames`, `ActivePlayer`
+
+## Signals / Event Subscriptions
+If you want to observe asynchronous D-Bus events for a specific player connection (like `TrackAdded` or `Seeked` or `NameOwnerChanged`), you can consume signals using the exported `.Events()` channel on the `Player` struct:
+
+```go
+events := p.Events()
+for sig := range events {
+    fmt.Printf("Received signal: %s from %s\n", sig.Name, sig.Sender)
+}
+```
 
 ## Library usage (`pkg/playerctl`)
 
@@ -156,11 +172,16 @@ func main() {
 - `emoji`
 - `trunc`
 - `add`, `sub`
+- `has_playlist`
+- `has_tracklist`
 
 Example:
 
 ```bash
 goplayerctl --player spotify --format '{{ emoji .status }} {{ default .title "(none)" }}' status
+
+# Only show playlist if it exists
+goplayerctl --format '{{ if has_playlist .playlistCount }}Active: {{ .activePlaylistName }}{{ else }}No playlist{{ end }}' metadata
 ```
 
 ## Documentation and references

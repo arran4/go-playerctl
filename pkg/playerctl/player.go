@@ -10,11 +10,26 @@ import (
 )
 
 const (
-	mprisPath       = "/org/mpris/MediaPlayer2"
-	propertiesIface = "org.freedesktop.DBus.Properties"
-	playerIface     = "org.mpris.MediaPlayer2.Player"
-	dbusIface       = "org.freedesktop.DBus"
+	mprisPath         = "/org/mpris/MediaPlayer2"
+	propertiesIface   = "org.freedesktop.DBus.Properties"
+	playerIface       = "org.mpris.MediaPlayer2.Player"
+	trackListIface    = "org.mpris.MediaPlayer2.TrackList"
+	playlistsIface    = "org.mpris.MediaPlayer2.Playlists"
+	dbusIface         = "org.freedesktop.DBus"
 )
+
+// Playlist defines the structure of an MPRIS playlist (Id, Name, Icon).
+type Playlist struct {
+	Id   dbus.ObjectPath
+	Name string
+	Icon string
+}
+
+// ActivePlaylist defines the structure of the ActivePlaylist property.
+type ActivePlaylist struct {
+	Valid    bool
+	Playlist Playlist
+}
 
 var (
 	connectSessionBus = dbus.ConnectSessionBus
@@ -33,6 +48,7 @@ type Player struct {
 	obj        dbus.BusObject
 	signalChan chan *dbus.Signal
 	done       chan struct{}
+	eventChan  chan *dbus.Signal
 
 	disappeared bool
 	closed      bool
@@ -60,6 +76,7 @@ func NewPlayerFromName(name *PlayerName) (*Player, error) {
 		source:     name.Source,
 		signalChan: make(chan *dbus.Signal, 32),
 		done:       make(chan struct{}),
+		eventChan:  make(chan *dbus.Signal, 32),
 	}
 
 	if err := p.connect(); err != nil {
@@ -122,6 +139,11 @@ func (p *Player) subscribeSignalsLocked() error {
 }
 
 func (p *Player) signalLoop() {
+	defer func() {
+		if p.eventChan != nil {
+			close(p.eventChan)
+		}
+	}()
 	for {
 		select {
 		case <-p.done:
@@ -130,6 +152,13 @@ func (p *Player) signalLoop() {
 			if sig == nil {
 				continue
 			}
+
+			select {
+			case p.eventChan <- sig:
+			default:
+				// Drop signal if eventChan is full
+			}
+
 			if sig.Name == dbusIface+".NameOwnerChanged" && len(sig.Body) >= 3 {
 				if name, ok := sig.Body[0].(string); ok && name == "org.mpris.MediaPlayer2."+p.instance {
 					if newOwner, ok := sig.Body[2].(string); ok && newOwner == "" {
@@ -172,6 +201,11 @@ func (p *Player) Disappeared() bool {
 	return p.disappeared
 }
 
+// Events returns a read-only channel for D-Bus signals received by the player.
+func (p *Player) Events() <-chan *dbus.Signal {
+	return p.eventChan
+}
+
 // Name returns the short player name.
 func (p *Player) Name() string { p.mu.RLock(); defer p.mu.RUnlock(); return p.name }
 
@@ -193,6 +227,33 @@ func (p *Player) getProperty(name string, out any) error {
 		return err
 	}
 	return dbus.Store([]interface{}{v.Value()}, out)
+}
+
+func (p *Player) getInterfaceProperty(iface, name string, out any) error {
+	p.mu.RLock()
+	obj := p.obj
+	p.mu.RUnlock()
+	if obj == nil {
+		return ErrPlayerNotFound
+	}
+	v, err := obj.GetProperty(iface + "." + name)
+	if err != nil {
+		return err
+	}
+	return dbus.Store([]interface{}{v.Value()}, out)
+}
+
+func (p *Player) callInterface(iface, method string, args ...any) error {
+	p.mu.RLock()
+	obj := p.obj
+	p.mu.RUnlock()
+	if obj == nil {
+		return ErrPlayerNotFound
+	}
+	if call := obj.Call(iface+"."+method, 0, args...); call.Err != nil {
+		return InvalidCommandError{Command: strings.ToLower(method)}
+	}
+	return nil
 }
 
 // PlaybackStatus returns the player's current playback status.
@@ -223,6 +284,129 @@ func (p *Player) LoopStatus() (LoopStatus, error) {
 
 // Shuffle returns whether shuffle is enabled.
 func (p *Player) Shuffle() (bool, error) { var v bool; return v, p.getProperty("Shuffle", &v) }
+
+// HasTrackList reports whether the player supports the TrackList interface.
+func (p *Player) HasTrackList() (bool, error) { var v bool; return v, p.getInterfaceProperty("org.mpris.MediaPlayer2", "HasTrackList", &v) }
+
+// Tracks returns the current track list as an array of ObjectPaths.
+func (p *Player) Tracks() ([]dbus.ObjectPath, error) {
+	var v []dbus.ObjectPath
+	return v, p.getInterfaceProperty(trackListIface, "Tracks", &v)
+}
+
+// CanEditTracks reports whether the track list can be modified.
+func (p *Player) CanEditTracks() (bool, error) {
+	var v bool
+	return v, p.getInterfaceProperty(trackListIface, "CanEditTracks", &v)
+}
+
+// GetTracksMetadata retrieves metadata for a given list of track IDs.
+func (p *Player) GetTracksMetadata(trackIds []dbus.ObjectPath) ([]map[string]dbus.Variant, error) {
+	p.mu.RLock()
+	obj := p.obj
+	p.mu.RUnlock()
+	if obj == nil {
+		return nil, ErrPlayerNotFound
+	}
+	var out []map[string]dbus.Variant
+	call := obj.Call(trackListIface+".GetTracksMetadata", 0, trackIds)
+	if call.Err != nil {
+		return nil, call.Err
+	}
+	if err := call.Store(&out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AddTrack adds a URI to the tracklist.
+func (p *Player) AddTrack(uri string, afterTrack dbus.ObjectPath, setAsCurrent bool) error {
+	return p.callInterface(trackListIface, "AddTrack", uri, afterTrack, setAsCurrent)
+}
+
+// RemoveTrack removes a track by ID from the tracklist.
+func (p *Player) RemoveTrack(trackId dbus.ObjectPath) error {
+	return p.callInterface(trackListIface, "RemoveTrack", trackId)
+}
+
+// GoTo makes the player switch to the specified track in the tracklist.
+func (p *Player) GoTo(trackId dbus.ObjectPath) error {
+	return p.callInterface(trackListIface, "GoTo", trackId)
+}
+
+// PlaylistCount returns the number of available playlists.
+func (p *Player) PlaylistCount() (uint32, error) {
+	var v uint32
+	return v, p.getInterfaceProperty(playlistsIface, "PlaylistCount", &v)
+}
+
+// Orderings returns the available orderings for GetPlaylists.
+func (p *Player) Orderings() ([]string, error) {
+	var v []string
+	return v, p.getInterfaceProperty(playlistsIface, "Orderings", &v)
+}
+
+// ActivePlaylist returns the currently active playlist.
+func (p *Player) ActivePlaylist() (ActivePlaylist, error) {
+	var raw struct {
+		Valid    bool
+		Playlist struct {
+			Id   dbus.ObjectPath
+			Name string
+			Icon string
+		}
+	}
+	err := p.getInterfaceProperty(playlistsIface, "ActivePlaylist", &raw)
+	return ActivePlaylist{
+		Valid: raw.Valid,
+		Playlist: Playlist{
+			Id:   raw.Playlist.Id,
+			Name: raw.Playlist.Name,
+			Icon: raw.Playlist.Icon,
+		},
+	}, err
+}
+
+// ActivatePlaylist activates the specified playlist.
+func (p *Player) ActivatePlaylist(playlistId dbus.ObjectPath) error {
+	return p.callInterface(playlistsIface, "ActivatePlaylist", playlistId)
+}
+
+// GetPlaylists returns a list of playlists given an index, count, order, and sort direction.
+func (p *Player) GetPlaylists(index uint32, maxCount uint32, order string, reverseOrder bool) ([]Playlist, error) {
+	p.mu.RLock()
+	obj := p.obj
+	p.mu.RUnlock()
+	if obj == nil {
+		return nil, ErrPlayerNotFound
+	}
+
+	// The signature is a(oss)
+	var raw []struct {
+		Id   dbus.ObjectPath
+		Name string
+		Icon string
+	}
+
+	call := obj.Call(playlistsIface+".GetPlaylists", 0, index, maxCount, order, reverseOrder)
+	if call.Err != nil {
+		return nil, call.Err
+	}
+
+	if err := call.Store(&raw); err != nil {
+		return nil, err
+	}
+
+	var out []Playlist
+	for _, item := range raw {
+		out = append(out, Playlist{
+			Id:   item.Id,
+			Name: item.Name,
+			Icon: item.Icon,
+		})
+	}
+	return out, nil
+}
 
 // Volume returns player volume.
 func (p *Player) Volume() (float64, error) { var v float64; return v, p.getProperty("Volume", &v) }

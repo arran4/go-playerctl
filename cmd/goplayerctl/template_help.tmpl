@@ -11,6 +11,10 @@ Available Variables:
   .rate     The current playback rate.
   .shuffle  The current shuffle status.
   .loopStatus The current loop status.
+  .activePlaylistName The name of the currently active playlist.
+  .activePlaylistId   The id of the currently active playlist.
+  .playlistCount      The total number of playlists.
+  .trackCount         The number of tracks in the current tracklist.
 
   Note: Any valid metadata key (e.g., .mpris:artUrl, .xesam:audioBPM) is also available.
 
@@ -24,6 +28,8 @@ Custom Functions:
   trunc <max> <value>           Truncate string to max length.
   add <a> <b>                   Add two integers.
   sub <a> <b>                   Subtract two integers.
+  has_playlist <count>          Returns true if count is greater than 0.
+  has_tracklist <count>         Returns true if count is greater than 0.
 
 Examples:
   {{.ProgramName}} --format '{{ "{{ .title }}" }} by {{ "{{ .artist }}" }}' metadata
