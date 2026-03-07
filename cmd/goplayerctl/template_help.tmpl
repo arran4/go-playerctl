@@ -16,7 +16,19 @@ Available Variables:
   .playlistCount      The total number of playlists.
   .trackCount         The number of tracks in the current tracklist.
 
-  Note: Any valid metadata key (e.g., .mpris:artUrl, .xesam:audioBPM) is also available.
+  .playlists          An array of all playlists. Each element contains:
+                      - .name
+                      - .id
+                      - .icon
+
+  .tracklist          An array of all tracks in the tracklist. Each element contains:
+                      - .id
+                      - .title
+                      - .artist
+                      - .album
+                      - All valid metadata keys (e.g., .mpris_artUrl, .xesam_audioBPM)
+
+  Note: Any valid metadata key (e.g., .mpris:artUrl, .xesam:audioBPM) is also available on the root object.
 
 Custom Functions:
   lc                            Lowercase string.

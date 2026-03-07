@@ -281,7 +281,7 @@ func selectInstances(playerArg, ignoreArg string, allPlayers bool) []string {
 }
 
 func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, error) {
-	ctx := map[string]string{"player": p.Instance()}
+	ctx := map[string]any{"player": p.Instance()}
 
 	switch cmd {
 	case "status":
@@ -335,19 +335,56 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 	}
 	if playlistCount, err := p.PlaylistCount(); err == nil {
 		ctx["playlistCount"] = fmt.Sprintf("%d", playlistCount)
+		if playlistCount > 0 {
+			if pls, err := p.GetPlaylists(0, playlistCount, "Alphabetical", false); err == nil {
+				var playlists []map[string]string
+				for _, pl := range pls {
+					playlists = append(playlists, map[string]string{
+						"id": string(pl.Id),
+						"name": pl.Name,
+						"icon": pl.Icon,
+					})
+				}
+				ctx["playlists"] = playlists
+			}
+		}
 	}
-	if tracks, err := p.Tracks(); err == nil {
-		ctx["trackCount"] = fmt.Sprintf("%d", len(tracks))
+	if hasTrackList, err := p.HasTrackList(); err == nil && hasTrackList {
+		if tracks, err := p.Tracks(); err == nil {
+			ctx["trackCount"] = fmt.Sprintf("%d", len(tracks))
+			if len(tracks) > 0 {
+				var tracklist []map[string]string
+				if metas, err := p.GetTracksMetadata(tracks); err == nil {
+					for i, meta := range metas {
+						trackCtx := make(map[string]string)
+						trackCtx["id"] = string(tracks[i])
+						for k, v := range meta {
+							if v.Value() != nil {
+								trackCtx[k] = fmt.Sprintf("%v", v.Value())
+								if strings.Contains(k, ":") {
+									trackCtx[strings.ReplaceAll(k, ":", "_")] = fmt.Sprintf("%v", v.Value())
+								}
+							}
+						}
+						trackCtx["title"] = playerctl.ExtractTitle(meta)
+						trackCtx["artist"] = playerctl.ExtractArtist(meta)
+						trackCtx["album"] = playerctl.ExtractAlbum(meta)
+						tracklist = append(tracklist, trackCtx)
+					}
+				}
+				ctx["tracklist"] = tracklist
+			}
+		}
 	}
 
 	if opts.format == "" {
 		if cmd == "status" {
-			if s, ok := ctx["status"]; ok {
+			if s, ok := ctx["status"].(string); ok {
 				return s, nil
 			}
 			return "", nil
 		}
-		if t, ok := ctx["title"]; ok {
+		if t, ok := ctx["title"].(string); ok {
 			return t, nil
 		}
 		return "", nil

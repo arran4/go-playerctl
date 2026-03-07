@@ -78,6 +78,12 @@ goplayerctl --player spotify --follow status
 
 # print active playlist details via template
 goplayerctl --format 'Active Playlist: {{ .activePlaylistName }} ({{ .playlistCount }} total)' metadata
+
+# print out all tracks in the tracklist
+goplayerctl --format '{{ range .tracklist }}{{ .title }} by {{ .artist }}{{ "\n" }}{{ end }}' metadata
+
+# print out all available playlists
+goplayerctl --format '{{ range .playlists }}Playlist: {{ .name }}{{ "\n" }}{{ end }}' metadata
 ```
 
 ## TUI usage (`goplayerctl tui`)

@@ -75,11 +75,15 @@ func NewFormatter(format string) (*Formatter, error) {
 			"uc":  strings.ToUpper,
 			"add": func(a, b int) int { return a + b },
 			"sub": func(a, b int) int { return a - b },
-			"default": func(v, fallback string) string {
-				if v == "" {
+			"default": func(v any, fallback string) string {
+				if v == nil {
 					return fallback
 				}
-				return v
+				str, ok := v.(string)
+				if !ok || str == "" {
+					return fallback
+				}
+				return str
 			},
 			"duration":      helperDuration,
 			"markup_escape": html.EscapeString,
@@ -107,7 +111,7 @@ func (f *Formatter) ContainsKey(key string) bool {
 }
 
 // Expand substitutes template variables using values from context.
-func (f *Formatter) Expand(context map[string]string) (string, error) {
+func (f *Formatter) Expand(context map[string]any) (string, error) {
 	var b bytes.Buffer
 	if err := f.tmpl.Execute(&b, context); err != nil {
 		return "", FormatError{Message: fmt.Sprintf("template execution failed: %v", err)}
