@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	mprisPath         = "/org/mpris/MediaPlayer2"
-	propertiesIface   = "org.freedesktop.DBus.Properties"
-	playerIface       = "org.mpris.MediaPlayer2.Player"
-	trackListIface    = "org.mpris.MediaPlayer2.TrackList"
-	playlistsIface    = "org.mpris.MediaPlayer2.Playlists"
-	dbusIface         = "org.freedesktop.DBus"
+	mprisPath       = "/org/mpris/MediaPlayer2"
+	propertiesIface = "org.freedesktop.DBus.Properties"
+	playerIface     = "org.mpris.MediaPlayer2.Player"
+	trackListIface  = "org.mpris.MediaPlayer2.TrackList"
+	playlistsIface  = "org.mpris.MediaPlayer2.Playlists"
+	dbusIface       = "org.freedesktop.DBus"
 )
 
 // Playlist defines the structure of an MPRIS playlist (Id, Name, Icon).
@@ -286,7 +286,10 @@ func (p *Player) LoopStatus() (LoopStatus, error) {
 func (p *Player) Shuffle() (bool, error) { var v bool; return v, p.getProperty("Shuffle", &v) }
 
 // HasTrackList reports whether the player supports the TrackList interface.
-func (p *Player) HasTrackList() (bool, error) { var v bool; return v, p.getInterfaceProperty("org.mpris.MediaPlayer2", "HasTrackList", &v) }
+func (p *Player) HasTrackList() (bool, error) {
+	var v bool
+	return v, p.getInterfaceProperty("org.mpris.MediaPlayer2", "HasTrackList", &v)
+}
 
 // Tracks returns the current track list as an array of ObjectPaths.
 func (p *Player) Tracks() ([]dbus.ObjectPath, error) {

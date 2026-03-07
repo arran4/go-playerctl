@@ -34,12 +34,12 @@ type tuiModel struct {
 	width         int
 	height        int
 
-	viewMode          string // "main", "playlist", "tracklist"
-	playlistItems     []string
-	playlistIds       []string
-	trackItems        []string
-	trackIds          []string
-	listCursor        int
+	viewMode      string // "main", "playlist", "tracklist"
+	playlistItems []string
+	playlistIds   []string
+	trackItems    []string
+	trackIds      []string
+	listCursor    int
 }
 
 var controlSchemes = []string{"arrow", "vim", "winamp", "emacs"}
