@@ -120,6 +120,12 @@ func (p *Player) connect() error {
 	return nil
 }
 
+// escapeBusValue escapes single quotes and backslashes in D-Bus match rule values.
+func escapeBusValue(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	return strings.ReplaceAll(s, `'`, `\'`)
+}
+
 func (p *Player) subscribeSignalsLocked() error {
 	if p.conn == nil {
 		return nil
@@ -127,7 +133,7 @@ func (p *Player) subscribeSignalsLocked() error {
 	matches := []string{
 		"type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='" + mprisPath + "'",
 		"type='signal',interface='org.mpris.MediaPlayer2.Player',member='Seeked',path='" + mprisPath + "'",
-		"type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.mpris.MediaPlayer2." + p.instance + "'",
+		"type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.mpris.MediaPlayer2." + escapeBusValue(p.instance) + "'",
 	}
 	for _, rule := range matches {
 		if call := p.conn.BusObject().Call(dbusIface+".AddMatch", 0, rule); call.Err != nil {
