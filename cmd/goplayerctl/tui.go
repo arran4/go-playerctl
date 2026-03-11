@@ -627,7 +627,8 @@ func (m tuiModel) View() string {
 	}
 
 	if m.viewMode == "playlist" {
-		listStr := fmt.Sprintf("%s Playlists:\n\n", playerName)
+		var listStrBuilder strings.Builder
+		fmt.Fprintf(&listStrBuilder, "%s Playlists:\n\n", playerName)
 		if len(m.playlistItems) > 0 {
 			start := m.listCursor - (m.height/2 - 5)
 			if start < 0 {
@@ -638,7 +639,8 @@ func (m tuiModel) View() string {
 				end = len(m.playlistItems)
 			}
 
-			listStr += lipgloss.NewStyle().Underline(true).Render(fmt.Sprintf("   %-30s | %-20s | %s", "Name", "ID", "Icon")) + "\n"
+			listStrBuilder.WriteString(lipgloss.NewStyle().Underline(true).Render(fmt.Sprintf("   %-30s | %-20s | %s", "Name", "ID", "Icon")))
+			listStrBuilder.WriteByte('\n')
 			for i := start; i < end; i++ {
 				plName := m.playlistItems[i]
 				plId := m.playlistIds[i]
@@ -670,19 +672,20 @@ func (m tuiModel) View() string {
 					plName = fmt.Sprintf("%-30s", plName)
 					plIdDisplay = fmt.Sprintf("%-20s", plIdDisplay)
 				}
-				listStr += fmt.Sprintf("%s%s %s | %s | %s\n", prefix, activeMarker, plName, plIdDisplay, plIcon)
+				fmt.Fprintf(&listStrBuilder, "%s%s %s | %s | %s\n", prefix, activeMarker, plName, plIdDisplay, plIcon)
 			}
 		} else {
-			listStr += "No playlists available or unsupported.\n"
+			listStrBuilder.WriteString("No playlists available or unsupported.\n")
 		}
-		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStr))
+		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStrBuilder.String()))
 		b.WriteString("\n\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("↑/↓: scroll • enter/o: play playlist • esc/P: back to main • q: quit"))
 		return b.String()
 	}
 
 	if m.viewMode == "tracklist" {
-		listStr := fmt.Sprintf("%s Tracklist:\n\n", playerName)
+		var listStrBuilder strings.Builder
+		fmt.Fprintf(&listStrBuilder, "%s Tracklist:\n\n", playerName)
 		if len(m.trackTitles) > 0 {
 			start := m.listCursor - (m.height/2 - 5)
 			if start < 0 {
@@ -693,7 +696,8 @@ func (m tuiModel) View() string {
 				end = len(m.trackTitles)
 			}
 
-			listStr += lipgloss.NewStyle().Underline(true).Render(fmt.Sprintf("   %-30s | %-30s | %s", "Artist", "Title", "ID")) + "\n"
+			listStrBuilder.WriteString(lipgloss.NewStyle().Underline(true).Render(fmt.Sprintf("   %-30s | %-30s | %s", "Artist", "Title", "ID")))
+			listStrBuilder.WriteByte('\n')
 			for i := start; i < end; i++ {
 				trArtist := m.trackArtists[i]
 				trTitle := m.trackTitles[i]
@@ -720,12 +724,12 @@ func (m tuiModel) View() string {
 					trArtist = fmt.Sprintf("%-30s", trArtist)
 					trTitle = fmt.Sprintf("%-30s", trTitle)
 				}
-				listStr += fmt.Sprintf("%s %s | %s | %s\n", prefix, trArtist, trTitle, trIdDisplay)
+				fmt.Fprintf(&listStrBuilder, "%s %s | %s | %s\n", prefix, trArtist, trTitle, trIdDisplay)
 			}
 		} else {
-			listStr += "No tracklist available or unsupported.\n"
+			listStrBuilder.WriteString("No tracklist available or unsupported.\n")
 		}
-		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStr))
+		b.WriteString(currentBoxStyle.Width(boxWidth * 2).Render(listStrBuilder.String()))
 		b.WriteString("\n\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("↑/↓: scroll • enter: play track • esc/T: back to main • q: quit"))
 		return b.String()
