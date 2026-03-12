@@ -36,10 +36,10 @@ func (m *MockPlayer) Pause() *dbus.Error {
 
 func (m *MockPlayer) PlayPause() *dbus.Error {
 	fmt.Println("Mock: PlayPause")
-    v, err := m.props.Get("org.mpris.MediaPlayer2.Player", "PlaybackStatus")
-    if err != nil {
-        return nil
-    }
+	v, err := m.props.Get("org.mpris.MediaPlayer2.Player", "PlaybackStatus")
+	if err != nil {
+		return nil
+	}
 	status := v.Value().(string)
 	if status == "Playing" {
 		m.props.SetMust("org.mpris.MediaPlayer2.Player", "PlaybackStatus", "Paused")
