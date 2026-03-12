@@ -266,6 +266,43 @@ jobs:
           git diff
           exit 1
 
+  go-fix:
+    name: Go fix
+    needs: [route, discover]
+    if: ${{ needs.discover.outputs.has_go == 'true' && needs.route.outputs.run_code_checks == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Run go fix
+        run: |
+          go fix ./...
+      - name: Check for modified files
+        id: git-check
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "modified=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "modified=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create Pull Request
+        if: steps.git-check.outputs.modified == 'true' && github.event_name == 'workflow_dispatch' && inputs.allow_prs == true
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: 'style: apply go fix'
+          commit-message: 'style: apply go fix'
+          body: 'Automated fixing using `go fix ./...`'
+          branch: 'auto/gofix'
+      - name: Fail if unformatted
+        if: steps.git-check.outputs.modified == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.allow_prs == true)
+        run: |
+          echo "Code requires go fix. Please run 'go fix ./...' locally."
+          git diff
+          exit 1
+
   go-vet:
     name: Go vet
     needs: [route, discover]
