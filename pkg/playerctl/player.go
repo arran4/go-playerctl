@@ -466,8 +466,8 @@ func (p *Player) PlayPause() error { return p.callPlayer("PlayPause") }
 func (p *Player) Stop() error      { return p.callPlayer("Stop") }
 func (p *Player) Next() error      { return p.callPlayer("Next") }
 func (p *Player) Previous() error  { return p.callPlayer("Previous") }
-func (p *Player) Seek(offset int64) error {
-	return p.callPlayer("Seek", offset)
+func (p *Player) Seek(offset int64, whence int) (int64, error) {
+	return offset, p.callPlayer("Seek", offset)
 }
 func (p *Player) SetPosition(trackID string, position int64) error {
 	return p.callPlayer("SetPosition", dbus.ObjectPath(trackID), position)

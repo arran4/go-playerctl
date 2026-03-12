@@ -434,7 +434,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				if m.listCursor >= 0 && m.listCursor < len(m.playlistIds) {
 					p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 					if err == nil {
-						p.ActivatePlaylist(dbus.ObjectPath(m.playlistIds[m.listCursor]))
+						_ = p.ActivatePlaylist(dbus.ObjectPath(m.playlistIds[m.listCursor]))
 						p.Close()
 						// After activating a playlist, automatically switch to the tracklist to view its contents
 						m.viewMode = "tracklist"
@@ -446,7 +446,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				if m.listCursor >= 0 && m.listCursor < len(m.trackIds) {
 					p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 					if err == nil {
-						p.GoTo(dbus.ObjectPath(m.trackIds[m.listCursor]))
+						_ = p.GoTo(dbus.ObjectPath(m.trackIds[m.listCursor]))
 						p.Close()
 					}
 				}
@@ -456,7 +456,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 		if len(m.players) > 0 {
 			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 			if err == nil {
-				p.PlayPause()
+				_ = p.PlayPause()
 				p.Close()
 				m.updateCurrentPlayerInfo()
 			}
@@ -465,7 +465,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 		if len(m.players) > 0 {
 			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 			if err == nil {
-				p.Pause()
+				_ = p.Pause()
 				p.Close()
 				m.updateCurrentPlayerInfo()
 			}
@@ -474,7 +474,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 		if len(m.players) > 0 {
 			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 			if err == nil {
-				p.Stop()
+				_ = p.Stop()
 				p.Close()
 				m.updateCurrentPlayerInfo()
 			}
@@ -483,7 +483,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 		if len(m.players) > 0 {
 			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 			if err == nil {
-				p.Next()
+				_ = p.Next()
 				p.Close()
 				m.updateCurrentPlayerInfo()
 			}
@@ -492,7 +492,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 		if len(m.players) > 0 {
 			p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 			if err == nil {
-				p.Previous()
+				_ = p.Previous()
 				p.Close()
 				m.updateCurrentPlayerInfo()
 			}
@@ -505,7 +505,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				if newVol > 1.0 {
 					newVol = 1.0
 				}
-				p.SetVolume(newVol)
+				_ = p.SetVolume(newVol)
 				p.Close()
 				m.updateCurrentPlayerInfo()
 			}
@@ -518,7 +518,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				if newVol < 0.0 {
 					newVol = 0.0
 				}
-				p.SetVolume(newVol)
+				_ = p.SetVolume(newVol)
 				p.Close()
 				m.updateCurrentPlayerInfo()
 			}
@@ -534,10 +534,10 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				if m.length > 0 && m.position+jumpAmt > m.length {
 					trackId, _ := p.GetTrackID()
 					if trackId != "" {
-						p.SetPosition(trackId, m.length)
+						_ = p.SetPosition(trackId, m.length)
 					}
 				} else {
-					p.Seek(jumpAmt)
+					_, _ = p.Seek(jumpAmt, 0)
 				}
 				p.Close()
 				m.updateCurrentPlayerInfo()
@@ -551,10 +551,10 @@ func (m *tuiModel) handleAction(action tuiAction) {
 				if m.position-jumpAmt < 0 {
 					trackId, _ := p.GetTrackID()
 					if trackId != "" {
-						p.SetPosition(trackId, 0)
+						_ = p.SetPosition(trackId, 0)
 					}
 				} else {
-					p.Seek(-jumpAmt)
+					_, _ = p.Seek(-jumpAmt, 0)
 				}
 				p.Close()
 				m.updateCurrentPlayerInfo()
