@@ -61,9 +61,9 @@ func (m *MockPlayer) Play() *dbus.Error {
 	return nil
 }
 
-func (m *MockPlayer) Seek(offset int64) *dbus.Error {
+func (m *MockPlayer) Seek(offset int64, whence int) (int64, error) {
 	fmt.Printf("Mock: Seek %d\n", offset)
-	return nil
+	return 0, nil
 }
 
 func (m *MockPlayer) SetPosition(trackId dbus.ObjectPath, position int64) *dbus.Error {
