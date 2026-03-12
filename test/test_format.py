@@ -5,7 +5,18 @@ from .playerctl import PlayerctlCli
 import pytest
 import asyncio
 
-# TODO: test missing function does not segv
+@pytest.mark.asyncio
+async def test_missing_function(bus_address):
+    [mpris] = await setup_mpris('format-test', bus_address=bus_address)
+    mpris.metadata = {'mpris:length': Variant('x', 100000)}
+    await mpris.ping()
+    playerctl = PlayerctlCli(bus_address)
+
+    cmd = await playerctl.run('metadata --format \'{{missing_function(status)}}\'')
+    # Ensure it exits gracefully with an error code (not a crash like -11)
+    assert cmd.returncode == 1, cmd.stderr
+
+    await mpris.disconnect()
 
 
 @pytest.mark.asyncio
