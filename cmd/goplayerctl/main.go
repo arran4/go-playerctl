@@ -599,7 +599,7 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 				} else {
 					seekOffset = duration.Microseconds()
 				}
-				if err := p.Seek(seekOffset); err != nil {
+				if _, err := p.Seek(seekOffset, 0); err != nil {
 					fmt.Fprintln(stderr, err)
 					return 1
 				}
