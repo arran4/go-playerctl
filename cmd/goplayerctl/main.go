@@ -149,7 +149,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd := strings.ToLower(remaining[0])
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
-		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {},
+		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
 		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "rate": {},
 		"playlist": {}, "tracklist": {},
 	}
@@ -160,6 +160,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if *follow && cmd != "status" && cmd != "metadata" {
 		fmt.Fprintln(stderr, "--follow is only supported for status and metadata")
 		return 2
+	}
+
+	if cmd == "mock" {
+		return runMock(remaining[1:], stdout, stderr)
 	}
 
 	if cmd == "daemon" {
