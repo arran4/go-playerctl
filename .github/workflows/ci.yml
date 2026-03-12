@@ -213,7 +213,7 @@ jobs:
 
   go-test:
     name: Go lint/test (${{ matrix.os }})
-    needs: [route, discover, golangci]
+    needs: [route, discover]
     if: ${{ needs.discover.outputs.has_go == 'true' && needs.route.outputs.run_code_checks == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -318,7 +318,7 @@ jobs:
 
   goreleaser:
     name: GoReleaser
-    needs: [route, discover, go-test, prepare-release-tag]
+    needs: [route, discover, golangci, go-test, go-format, go-fix, go-vet, prepare-release-tag]
     if: ${{ !failure() && !cancelled() && needs.discover.outputs.has_go == 'true' && needs.discover.outputs.has_goreleaser == 'true' && (((github.event_name == 'push') && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'release-'))) }}
     runs-on: ubuntu-latest
     steps:
