@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -64,6 +65,23 @@ func NewFormatter(format string) (*Formatter, error) {
 		return nil, FormatError{Message: "empty format template"}
 	}
 
+	// Rewrite standard metadata keys (like .mpris:artUrl) into function calls
+	// so that they can be parsed by text/template.
+	// We only want to rewrite these inside template action blocks {{ ... }}.
+	// We also avoid rewriting literal strings inside those blocks by splitting on quotes.
+	blockRe := regexp.MustCompile(`(?s){{(.*?)}}`)
+	fieldRe := regexp.MustCompile(`\.([a-zA-Z0-9]+:[a-zA-Z0-9]+)`)
+
+	rewrittenFormat := blockRe.ReplaceAllStringFunc(format, func(block string) string {
+		parts := strings.Split(block, "\"")
+		for i := 0; i < len(parts); i += 2 {
+			parts[i] = fieldRe.ReplaceAllStringFunc(parts[i], func(s string) string {
+				return `(index . "` + s[1:] + `")`
+			})
+		}
+		return strings.Join(parts, "\"")
+	})
+
 	tmpl, err := template.New("playerctl-format").
 		Funcs(template.FuncMap{
 			"lc":  strings.ToLower,
@@ -82,7 +100,7 @@ func NewFormatter(format string) (*Formatter, error) {
 			"trunc":         helperTrunc,
 		}).
 		Option("missingkey=zero").
-		Parse(format)
+		Parse(rewrittenFormat)
 	if err != nil {
 		return nil, FormatError{Message: err.Error()}
 	}

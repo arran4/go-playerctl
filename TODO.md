@@ -5,7 +5,7 @@
 - [x] Implemented `Shuffle` property
 - [x] Implemented `Position` property
 - [ ] Implement `Rate` property getter/setter in `pkg/playerctl/player.go`
-- [ ] Expose standard MPRIS and Xesam metadata keys (`mpris:trackid`, `mpris:artUrl`, `xesam:audioBPM`, etc.) to templates and output.
+- [x] Expose standard MPRIS and Xesam metadata keys (`mpris:trackid`, `mpris:artUrl`, `xesam:audioBPM`, etc.) to templates and output.
 - [ ] Expose `position`, `volume`, `loopStatus`, `shuffle`, and `rate` variables to format templates.
 - [ ] Expose tracklist and playlist information (e.g., active playlist name, track counts) as format template variables.
 - [ ] Add helper template functions for interacting with and displaying tracklists and playlists clearly.

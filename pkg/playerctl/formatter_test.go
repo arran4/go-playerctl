@@ -41,6 +41,15 @@ func TestFormatterExpand(t *testing.T) {
 	if err != nil || got != "Tycho - " {
 		t.Fatalf("Expand() missing key = %q, err=%v", got, err)
 	}
+
+	f2, err := NewFormatter("{{ .mpris:artUrl }}")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got, err = f2.Expand(map[string]string{"mpris:artUrl": "http://example.com/art.jpg"})
+	if err != nil || got != "http://example.com/art.jpg" {
+		t.Fatalf("Expand() mpris:artUrl = %q, err=%v", got, err)
+	}
 }
 
 func TestFormatterExpandFuncsAndParseError(t *testing.T) {
