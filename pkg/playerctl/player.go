@@ -1,5 +1,13 @@
 package playerctl
 
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/godbus/dbus/v5"
+)
+
 // Source: playerctl/playerctl-player.c
 // /*
 //  * This file is part of playerctl.
@@ -39,6 +47,24 @@ package playerctl
 // #define PROPERTIES_IFACE "org.freedesktop.DBus.Properties"
 // #define PLAYER_IFACE "org.mpris.MediaPlayer2.Player"
 // #define SET_MEMBER "Set"
+
+const (
+	MprisPath       = "/org/mpris/MediaPlayer2"
+	PropertiesIface = "org.freedesktop.DBus.Properties"
+	PlayerIface     = "org.mpris.MediaPlayer2.Player"
+	SetMember       = "Set"
+)
+
+type Player struct {
+	Conn                    *dbus.Conn
+	Name                    *PlayerName
+	BusName                 string
+	cachedStatus            PlaybackStatus
+	cachedPosition          int64
+	cachedTrackID           string
+	cachedPositionMonotonic time.Time
+	initted                 bool
+}
 //
 // enum {
 //     PROP_0,
@@ -1063,6 +1089,371 @@ package playerctl
 //
 //     return player;
 // }
+
+func (p *Player) handleSignals(c chan *dbus.Signal) {
+	for v := range c {
+		if v.Path != dbus.ObjectPath(MprisPath) {
+			continue
+		}
+
+		if v.Name == PropertiesIface+".PropertiesChanged" {
+			if len(v.Body) >= 2 {
+				changedProperties, ok := v.Body[1].(map[string]dbus.Variant)
+				if !ok {
+					continue
+				}
+
+				if statusVar, ok := changedProperties["PlaybackStatus"]; ok {
+					if statusStr, ok := statusVar.Value().(string); ok {
+						if status, parsed := ParsePlaybackStatus(statusStr); parsed {
+							p.cachedStatus = status
+						}
+					}
+				}
+
+				trackIDInvalidated := false
+				if metadataVar, ok := changedProperties["Metadata"]; ok {
+					if metadata, ok := metadataVar.Value().(map[string]dbus.Variant); ok {
+						trackID := GetTrackID(metadata)
+						if trackID != p.cachedTrackID {
+							p.cachedTrackID = trackID
+							trackIDInvalidated = true
+						}
+					}
+				}
+
+				if trackIDInvalidated {
+					p.cachedPosition = 0
+					p.cachedPositionMonotonic = time.Now()
+				}
+			}
+		} else if v.Name == PlayerIface+".Seeked" {
+			if len(v.Body) > 0 {
+				if position, ok := v.Body[0].(int64); ok {
+					p.cachedPosition = position
+					p.cachedPositionMonotonic = time.Now()
+				}
+			}
+		}
+	}
+}
+
+// GetArtist returns the artist from the metadata, joining multiple artists with a comma.
+func GetArtist(metadata map[string]dbus.Variant) string {
+	if variant, ok := metadata["xesam:artist"]; ok {
+		if artists, ok := variant.Value().([]string); ok && len(artists) > 0 {
+			return strings.Join(artists, ", ")
+		}
+	}
+	return ""
+}
+
+// GetTitle returns the title from the metadata.
+func GetTitle(metadata map[string]dbus.Variant) string {
+	if variant, ok := metadata["xesam:title"]; ok {
+		if title, ok := variant.Value().(string); ok {
+			return title
+		}
+	}
+	return ""
+}
+
+// GetAlbum returns the album from the metadata.
+func GetAlbum(metadata map[string]dbus.Variant) string {
+	if variant, ok := metadata["xesam:album"]; ok {
+		if album, ok := variant.Value().(string); ok {
+			return album
+		}
+	}
+	return ""
+}
+
+// GetTrackID returns the track ID from the metadata.
+func GetTrackID(metadata map[string]dbus.Variant) string {
+	if variant, ok := metadata["mpris:trackid"]; ok {
+		if val, ok := variant.Value().(dbus.ObjectPath); ok {
+			return string(val)
+		}
+		if val, ok := variant.Value().(string); ok {
+			return val
+		}
+	}
+	return ""
+}
+
+// subscribeToSignals sets up DBus signal matching.
+func (p *Player) subscribeToSignals() error {
+	matchRule := fmt.Sprintf("type='signal',sender='%s',path='%s',interface='%s'", p.BusName, MprisPath, PropertiesIface)
+	call := p.Conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, matchRule)
+	if call.Err != nil {
+		return fmt.Errorf("failed to add match signal for PropertiesChanged: %w", call.Err)
+	}
+
+	seekedMatchRule := fmt.Sprintf("type='signal',sender='%s',path='%s',interface='%s'", p.BusName, MprisPath, PlayerIface)
+	call = p.Conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, seekedMatchRule)
+	if call.Err != nil {
+		return fmt.Errorf("failed to add match signal for Seeked: %w", call.Err)
+	}
+
+	c := make(chan *dbus.Signal, 10)
+	p.Conn.Signal(c)
+	go p.handleSignals(c)
+
+	return nil
+}
+
+// PlaybackStatus returns the playback status of the player.
+func (p *Player) PlaybackStatus() (PlaybackStatus, error) {
+	variant, err := p.Conn.Object(p.BusName, MprisPath).GetProperty(PlayerIface + ".PlaybackStatus")
+	if err != nil {
+		return PlaybackStatusStopped, err
+	}
+	statusStr, ok := variant.Value().(string)
+	if !ok {
+		return PlaybackStatusStopped, fmt.Errorf("unexpected type for PlaybackStatus: %T", variant.Value())
+	}
+	status, parsed := ParsePlaybackStatus(statusStr)
+	if !parsed {
+		return PlaybackStatusStopped, fmt.Errorf("failed to parse PlaybackStatus: %s", statusStr)
+	}
+	p.cachedStatus = status
+	return status, nil
+}
+
+// LoopStatus returns the loop status of the player.
+func (p *Player) LoopStatus() (LoopStatus, error) {
+	variant, err := p.Conn.Object(p.BusName, MprisPath).GetProperty(PlayerIface + ".LoopStatus")
+	if err != nil {
+		return LoopStatusNone, err
+	}
+	statusStr, ok := variant.Value().(string)
+	if !ok {
+		return LoopStatusNone, fmt.Errorf("unexpected type for LoopStatus: %T", variant.Value())
+	}
+	status, parsed := ParseLoopStatus(statusStr)
+	if !parsed {
+		return LoopStatusNone, fmt.Errorf("failed to parse LoopStatus: %s", statusStr)
+	}
+	return status, nil
+}
+
+// Volume returns the volume of the player.
+func (p *Player) Volume() (float64, error) {
+	variant, err := p.Conn.Object(p.BusName, MprisPath).GetProperty(PlayerIface + ".Volume")
+	if err != nil {
+		return 0, err
+	}
+	volume, ok := variant.Value().(float64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected type for Volume: %T", variant.Value())
+	}
+	return volume, nil
+}
+
+// Metadata returns the metadata of the player.
+func (p *Player) Metadata() (map[string]dbus.Variant, error) {
+	variant, err := p.Conn.Object(p.BusName, MprisPath).GetProperty(PlayerIface + ".Metadata")
+	if err != nil {
+		return nil, err
+	}
+	metadata, ok := variant.Value().(map[string]dbus.Variant)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for Metadata: %T", variant.Value())
+	}
+	return metadata, nil
+}
+
+// Position returns the current position of the player in microseconds.
+func (p *Player) Position() (int64, error) {
+	variant, err := p.Conn.Object(p.BusName, MprisPath).GetProperty(PlayerIface + ".Position")
+	if err != nil {
+		return 0, err
+	}
+	position, ok := variant.Value().(int64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected type for Position: %T", variant.Value())
+	}
+
+	status, err := p.PlaybackStatus()
+	if err != nil {
+		return position, err
+	}
+
+	p.cachedPosition = position
+	p.cachedPositionMonotonic = time.Now()
+	return p.calculateCachedPosition(status, p.cachedPositionMonotonic, position), nil
+}
+
+func (p *Player) calculateCachedPosition(status PlaybackStatus, positionMonotonic time.Time, position int64) int64 {
+	switch status {
+	case PlaybackStatusPlaying:
+		offset := time.Since(positionMonotonic).Microseconds()
+		return position + offset
+	case PlaybackStatusPaused:
+		return position
+	default:
+		return 0
+	}
+}
+
+// getBoolProperty is a helper to fetch a boolean property.
+func (p *Player) getBoolProperty(propName string) (bool, error) {
+	variant, err := p.Conn.Object(p.BusName, MprisPath).GetProperty(PlayerIface + "." + propName)
+	if err != nil {
+		return false, err
+	}
+	val, ok := variant.Value().(bool)
+	if !ok {
+		return false, fmt.Errorf("unexpected type for %s: %T", propName, variant.Value())
+	}
+	return val, nil
+}
+
+// CanControl returns whether the player can be controlled.
+func (p *Player) CanControl() (bool, error) {
+	return p.getBoolProperty("CanControl")
+}
+
+// CanPlay returns whether the player can start playing.
+func (p *Player) CanPlay() (bool, error) {
+	return p.getBoolProperty("CanPlay")
+}
+
+// CanPause returns whether the player can be paused.
+func (p *Player) CanPause() (bool, error) {
+	return p.getBoolProperty("CanPause")
+}
+
+// CanSeek returns whether the player supports seeking.
+func (p *Player) CanSeek() (bool, error) {
+	return p.getBoolProperty("CanSeek")
+}
+
+// CanGoNext returns whether the player supports going to the next track.
+func (p *Player) CanGoNext() (bool, error) {
+	return p.getBoolProperty("CanGoNext")
+}
+
+// CanGoPrevious returns whether the player supports going to the previous track.
+func (p *Player) CanGoPrevious() (bool, error) {
+	return p.getBoolProperty("CanGoPrevious")
+}
+
+// Shuffle returns the shuffle status of the player.
+func (p *Player) Shuffle() (bool, error) {
+	variant, err := p.Conn.Object(p.BusName, MprisPath).GetProperty(PlayerIface + ".Shuffle")
+	if err != nil {
+		return false, err
+	}
+	shuffle, ok := variant.Value().(bool)
+	if !ok {
+		return false, fmt.Errorf("unexpected type for Shuffle: %T", variant.Value())
+	}
+	return shuffle, nil
+}
+
+// Play commands the player to start playing.
+func (p *Player) Play() error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".Play", 0)
+	return call.Err
+}
+
+// Pause commands the player to pause playback.
+func (p *Player) Pause() error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".Pause", 0)
+	return call.Err
+}
+
+// PlayPause commands the player to toggle playback status.
+func (p *Player) PlayPause() error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".PlayPause", 0)
+	return call.Err
+}
+
+// Stop commands the player to stop playback.
+func (p *Player) Stop() error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".Stop", 0)
+	return call.Err
+}
+
+// Next commands the player to skip to the next track.
+func (p *Player) Next() error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".Next", 0)
+	return call.Err
+}
+
+// Previous commands the player to skip to the previous track.
+func (p *Player) Previous() error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".Previous", 0)
+	return call.Err
+}
+
+// Seek commands the player to seek by the given offset (in microseconds).
+func (p *Player) Seek(offset int64) error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".Seek", 0, offset)
+	return call.Err
+}
+
+// SetPosition commands the player to set the playback position of a given track.
+func (p *Player) SetPosition(trackID dbus.ObjectPath, position int64) error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".SetPosition", 0, trackID, position)
+	return call.Err
+}
+
+// SetVolume sets the volume of the player.
+func (p *Player) SetVolume(volume float64) error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PropertiesIface+"."+SetMember, 0, PlayerIface, "Volume", dbus.MakeVariant(volume))
+	return call.Err
+}
+
+// SetLoopStatus sets the loop status of the player.
+func (p *Player) SetLoopStatus(status LoopStatus) error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PropertiesIface+"."+SetMember, 0, PlayerIface, "LoopStatus", dbus.MakeVariant(status.String()))
+	return call.Err
+}
+
+// SetShuffle sets the shuffle status of the player.
+func (p *Player) SetShuffle(shuffle bool) error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PropertiesIface+"."+SetMember, 0, PlayerIface, "Shuffle", dbus.MakeVariant(shuffle))
+	return call.Err
+}
+
+// OpenUri opens a given URI in the player.
+func (p *Player) OpenUri(uri string) error {
+	call := p.Conn.Object(p.BusName, MprisPath).Call(PlayerIface+".OpenUri", 0, uri)
+	return call.Err
+}
+
+// NewPlayerFromName creates a new Player from a PlayerName.
+// It establishes a connection to DBus and initializes the player state.
+func NewPlayerFromName(name *PlayerName) (*Player, error) {
+	var conn *dbus.Conn
+	var err error
+
+	if name.Source == SourceDBusSystem {
+		conn, err = dbus.SystemBus()
+	} else {
+		conn, err = dbus.SessionBus()
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to DBus: %w", err)
+	}
+
+	player := &Player{
+		Conn:    conn,
+		Name:    name,
+		BusName: name.Instance,
+	}
+
+	err = player.subscribeToSignals()
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe to signals: %w", err)
+	}
+
+	player.initted = true
+	return player, nil
+}
 //
 // /**
 //  * playerctl_player_new_for_source:
