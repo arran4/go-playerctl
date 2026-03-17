@@ -1,0 +1,130 @@
+.nh
+.TH PLAYERCTL-GO(1)
+
+.SH NAME
+playerctl-go \- control MPRIS media players from the Go port CLI
+
+
+.SH SYNOPSIS
+\fBgoplayerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND\fR
+
+
+.SH DESCRIPTION
+The Go port of \fBplayerctl\fR controls media players implementing the MPRIS D-Bus interfaces.
+
+
+.SH COMMANDS
+.IP \(bu 2
+\fBplay\fR
+.IP \(bu 2
+\fBpause\fR
+.IP \(bu 2
+\fBplay-pause\fR
+.IP \(bu 2
+\fBplaypause\fR
+.IP \(bu 2
+\fBnext\fR
+.IP \(bu 2
+\fBprevious\fR
+.IP \(bu 2
+\fBstatus\fR
+.IP \(bu 2
+\fBmetadata\fR
+.IP \(bu 2
+\fBtui\fR
+.IP \(bu 2
+\fBdaemon\fR
+.IP \(bu 2
+\fBloop [status]\fR - Print or set the loop status. Can be "None", "Track", or "Playlist". If setting a new status, it prints the old and new loop status.
+.IP \(bu 2
+\fBshuffle [on|off|toggle]\fR
+.IP \(bu 2
+\fBvolume [level]\fR
+.IP \(bu 2
+\fBposition [offset]\fR
+.IP \(bu 2
+\fBopen <uri>\fR
+
+
+.SH OPTIONS
+.IP \(bu 2
+\fB--player\fR: comma-separated instance list.
+.IP \(bu 2
+\fB--ignore-player\fR: comma-separated instance ignore list.
+.IP \(bu 2
+\fB--all-players\fR: target all discovered players.
+.IP \(bu 2
+\fB--list-all\fR: print discovered player names.
+.IP \(bu 2
+\fB--format\fR: Go template format string.
+.IP \(bu 2
+\fB--template-help\fR: print detailed help for format templates and exit.
+.IP \(bu 2
+\fB--follow\fR: keep polling and print value changes.
+.IP \(bu 2
+\fB--follow-interval\fR: polling interval (default: 1s).
+.IP \(bu 2
+\fB--tui-scheme\fR: TUI control scheme (arrow, vim, winamp, emacs).
+.IP \(bu 2
+\fB--version\fR: print version string.
+
+
+.SH EXAMPLES
+.EX
+# list players
+goplayerctl --list-all
+
+# query status for one player
+goplayerctl --player vlc status
+
+# query metadata for all players with formatted output
+goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}' metadata
+
+# query metadata for a player showing artist, album, and title
+goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
+
+# follow status changes
+goplayerctl --player spotify --follow status
+.EE
+
+
+.SH FORMAT STRINGS
+The Go port of \fBplayerctl\fR uses standard Go \fBtext/template\fR syntax for formatting output.
+
+.SH Variables
+The following variables are available in the template context:
+.IP \(bu 2
+\fB\&.player\fR: The name of the player instance.
+.IP \(bu 2
+\fB\&.status\fR: The playback status (e.g., Playing, Paused, Stopped).
+.IP \(bu 2
+\fB\&.title\fR: The title of the current track.
+.IP \(bu 2
+\fB\&.artist\fR: The artist of the current track.
+.IP \(bu 2
+\fB\&.album\fR: The album of the current track.
+
+.SH Functions
+The following custom functions are available:
+.IP \(bu 2
+\fBlc\fR: Lowercase string.
+.IP \(bu 2
+\fBuc\fR: Uppercase string.
+.IP \(bu 2
+\fBdefault <fallback> <value>\fR: Return fallback if value is empty.
+.IP \(bu 2
+\fBduration <value>\fR: Format duration value.
+.IP \(bu 2
+\fBmarkup_escape <value>\fR: HTML escape string.
+.IP \(bu 2
+\fBemoji <status>\fR: Return an emoji for playback status.
+.IP \(bu 2
+\fBtrunc <max> <value>\fR: Truncate string to max length.
+.IP \(bu 2
+\fBadd <a> <b>\fR: Add two integers.
+.IP \(bu 2
+\fBsub <a> <b>\fR: Subtract two integers.
+
+
+.SH SEE ALSO
+\fBREADME.md\fR, \fBcmd/goplayerctl/main.go\fR
