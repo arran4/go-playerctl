@@ -142,13 +142,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	remaining := fs.Args()
 	if len(remaining) == 0 {
-		fmt.Fprintln(stderr, "missing command")
+		printUsageHelp(stderr)
 		return 2
 	}
 
 	cmd := strings.ToLower(remaining[0])
+	if cmd == "help" {
+		printUsageHelp(stdout)
+		return 0
+	}
+
 	supported := map[string]struct{}{
-		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
+		"play": {}, "pause": {}, "play-pause": {}, "playpause": {}, "stop": {},
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
 		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "rate": {},
 		"playlist": {}, "tracklist": {},
@@ -421,6 +426,11 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 		}
 	case "play-pause", "playpause":
 		if err := p.PlayPause(); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+	case "stop":
+		if err := p.Stop(); err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
