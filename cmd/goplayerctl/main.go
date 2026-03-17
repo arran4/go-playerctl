@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -151,7 +152,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
 		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "rate": {},
-		"playlist": {}, "tracklist": {},
+		"playlist": {}, "tracklist": {}, "playing": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -434,6 +435,133 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
+	case "playing":
+		meta, err := p.Metadata()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		title := playerctl.ExtractTitle(meta)
+		artist := playerctl.ExtractArtist(meta)
+		album := playerctl.ExtractAlbum(meta)
+
+		if title == "" {
+			title = "Unknown Track"
+		}
+		if artist == "" {
+			artist = "Unknown Artist"
+		}
+		if album == "" {
+			album = "Unknown Album"
+		}
+
+		var length int64
+		if v, ok := meta["mpris:length"]; ok {
+			switch t := v.Value().(type) {
+			case int64:
+				length = t
+			case uint64:
+				length = int64(t)
+			case int32:
+				length = int64(t)
+			case float64:
+				length = int64(t)
+			}
+		}
+
+		position, _ := p.Position()
+
+		var playedStr, remainingStr string
+		var percent int
+
+		if length > 0 {
+			if position > length {
+				position = length
+			} else if position < 0 {
+				position = 0
+			}
+			percent = int((float64(position) / float64(length)) * 100)
+
+			playedSec := position / 1000000
+			remSec := (length - position) / 1000000
+
+			playedStr = fmt.Sprintf("%02d:%02d", playedSec/60, playedSec%60)
+			remainingStr = fmt.Sprintf("%02d:%02d", remSec/60, remSec%60)
+		} else {
+			playedStr = "--:--"
+			remainingStr = "--:--"
+		}
+
+		line := fmt.Sprintf("%s - %s - %s - %d%% - %s/%s", artist, album, title, percent, playedStr, remainingStr)
+
+		cols := 80
+		if colsStr := os.Getenv("COLUMNS"); colsStr != "" {
+			if c, err := strconv.Atoi(colsStr); err == nil && c > 0 {
+				cols = c
+			}
+		}
+		rLine := []rune(line)
+		if len(rLine) > cols {
+			// Try to truncate the middle parts to fit dynamically
+			baseLen := len([]rune(fmt.Sprintf(" -  -  - %d%% - %s/%s", percent, playedStr, remainingStr)))
+			if baseLen < cols {
+				avail := cols - baseLen
+
+				rArtist := []rune(artist)
+				rAlbum := []rune(album)
+				rTitle := []rune(title)
+
+				// Calculate actual lengths
+				aLen := len(rArtist)
+				alLen := len(rAlbum)
+				tLen := len(rTitle)
+
+				// Fair distribution of available space
+				// Simple approach: shrink the longest until it fits or until all are equal, then shrink equally
+				// For simplicity here, just iteratively truncate the longest string by 1 character until it fits
+				for aLen+alLen+tLen > avail && (aLen > 0 || alLen > 0 || tLen > 0) {
+					if aLen >= alLen && aLen >= tLen && aLen > 0 {
+						aLen--
+					} else if alLen >= aLen && alLen >= tLen && alLen > 0 {
+						alLen--
+					} else if tLen > 0 {
+						tLen--
+					}
+				}
+
+				if aLen < len(rArtist) {
+					if aLen > 0 {
+						artist = string(rArtist[:aLen-1]) + "…"
+					} else {
+						artist = ""
+					}
+				}
+				if alLen < len(rAlbum) {
+					if alLen > 0 {
+						album = string(rAlbum[:alLen-1]) + "…"
+					} else {
+						album = ""
+					}
+				}
+				if tLen < len(rTitle) {
+					if tLen > 0 {
+						title = string(rTitle[:tLen-1]) + "…"
+					} else {
+						title = ""
+					}
+				}
+
+				line = fmt.Sprintf("%s - %s - %s - %d%% - %s/%s", artist, album, title, percent, playedStr, remainingStr)
+				rLine = []rune(line)
+				if len(rLine) > cols {
+					line = string(rLine[:cols-1]) + "…"
+				}
+			} else {
+				line = string(rLine[:cols-1]) + "…"
+			}
+		}
+
+		write(line)
 	case "status", "metadata":
 		line, err := queryOutput(cmd, p, opts)
 		if err != nil {
