@@ -49,6 +49,11 @@ goplayerctl [flags] <command>
 - `previous`
 - `status`
 - `metadata`
+- `format [string]`
+- `album`
+- `artist`
+- `title`
+- `track`
 - `loop [None|Track|Playlist]`
 - `shuffle [On|Off|Toggle]`
 - `volume [level]`
