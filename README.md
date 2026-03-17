@@ -49,8 +49,8 @@ goplayerctl [flags] <command>
 - `previous`
 - `status`
 - `metadata`
-- `loop [status]` - Print or set the loop status. Can be "None", "Track", or "Playlist". If setting a new status, it prints the old and new loop status.
-- `shuffle [on|off|toggle]`
+- `loop [None|Track|Playlist]`
+- `shuffle [On|Off|Toggle]`
 - `volume [level]`
 - `position [offset]`
 - `rate [level]`
