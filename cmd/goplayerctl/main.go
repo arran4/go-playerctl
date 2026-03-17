@@ -34,6 +34,7 @@ type cliOptions struct {
 	allPlayers bool
 	indent     string
 	tuiScheme  string
+	json       bool
 }
 
 func printUsageHelp(stdout io.Writer) {
@@ -117,6 +118,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	followInterval := fs.Duration("follow-interval", time.Second, "follow polling interval")
 	indent := fs.String("indent", "", "indent string for JSON output (e.g. '  ' or '\\t')")
 	tuiScheme := fs.String("tui-scheme", "arrow", "TUI control scheme (arrow, vim, winamp, emacs)")
+	jsonFlag := fs.Bool("json", false, "output in JSON format")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -143,23 +145,28 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	remaining := fs.Args()
 	if len(remaining) == 0 {
-		fmt.Fprintln(stderr, "missing command")
+		printUsageHelp(stderr)
 		return 2
 	}
 
 	cmd := strings.ToLower(remaining[0])
+	if cmd == "help" {
+		printUsageHelp(stdout)
+		return 0
+	}
+
 	supported := map[string]struct{}{
-		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
+		"play": {}, "pause": {}, "play-pause": {}, "playpause": {}, "stop": {},
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
-		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "rate": {},
-		"playlist": {}, "tracklist": {}, "playing": {},
+		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "dump-json": {}, "rate": {},
+		"playlist": {}, "tracklist": {}, "playing": {}, "format": {}, "album": {}, "artist": {}, "title": {}, "track": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
 		return 2
 	}
-	if *follow && cmd != "status" && cmd != "metadata" {
-		fmt.Fprintln(stderr, "--follow is only supported for status and metadata")
+	if *follow && cmd != "status" && cmd != "metadata" && cmd != "format" && cmd != "album" && cmd != "artist" && cmd != "title" && cmd != "track" {
+		fmt.Fprintln(stderr, "--follow is only supported for status, metadata, format, album, artist, title, and track")
 		return 2
 	}
 
@@ -176,7 +183,38 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
 	}
-	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent, tuiScheme: *tuiScheme}
+
+	if cmd == "format" {
+		if len(remaining) > 1 {
+			*format = remaining[1]
+			remaining = append([]string{remaining[0]}, remaining[2:]...)
+		} else {
+			fmt.Fprintln(stderr, "format command requires a template string")
+			return 2
+		}
+		cmd = "metadata"
+	} else if cmd == "album" {
+		*format = "{{.album}}"
+		cmd = "metadata"
+	} else if cmd == "artist" {
+		*format = "{{.artist}}"
+		cmd = "metadata"
+	} else if cmd == "title" {
+		*format = "{{.title}}"
+		cmd = "metadata"
+	} else if cmd == "track" {
+		// For track number, map to xesam:trackNumber which is what playerctl expects.
+		*format = `{{ index . "xesam:trackNumber" }}`
+		cmd = "metadata"
+	}
+
+	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent, tuiScheme: *tuiScheme, json: *jsonFlag}
+
+	if cmd == "dump-json" {
+		cmd = "dump"
+		opts.json = true
+	}
+
 	if opts.follow {
 		return followCommand(cmd, instances, stdout, stderr, opts)
 	}
@@ -425,6 +463,11 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
+	case "stop":
+		if err := p.Stop(); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
 	case "next":
 		if err := p.Next(); err != nil {
 			fmt.Fprintln(stderr, err)
@@ -576,10 +619,16 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 				fmt.Fprintln(stderr, "invalid loop status")
 				return 1
 			}
+			oldStatus, err := p.LoopStatus()
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
 			if err := p.SetLoopStatus(status); err != nil {
 				fmt.Fprintln(stderr, err)
 				return 1
 			}
+			write(fmt.Sprintf("Loop status was %s and is now %s", oldStatus.String(), status.String()))
 		} else {
 			status, err := p.LoopStatus()
 			if err != nil {

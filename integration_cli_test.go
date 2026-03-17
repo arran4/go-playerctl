@@ -40,7 +40,7 @@ func TestPlayerctlMissingCommandIntegration(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected non-zero exit, output=%s", string(out))
 	}
-	if !strings.Contains(string(out), "missing command") {
+	if !strings.Contains(string(out), "Usage: goplayerctl") {
 		t.Fatalf("unexpected missing command output: %s", string(out))
 	}
 }
@@ -57,12 +57,12 @@ func TestPlayerctlDumpMissingPlayerIntegration(t *testing.T) {
 }
 
 func TestPlayerctlDumpCommandIntegration(t *testing.T) {
-	cmd := exec.Command("go", "run", "./cmd/goplayerctl", "--all-players", "dump")
+	cmd := exec.Command("go", "run", "./cmd/goplayerctl", "--all-players", "dump-json")
 	out, err := cmd.CombinedOutput()
 	// It's possible there are no players running on the test system.
 	// But it shouldn't crash, it should just print `[]` or fail gracefully.
 	if err != nil && !strings.Contains(string(out), "failed to connect player") && !strings.Contains(string(out), "no players selected") {
-		t.Logf("Warning: go run --all-players dump returned err=%v, output=%s", err, string(out))
+		t.Logf("Warning: go run --all-players dump-json returned err=%v, output=%s", err, string(out))
 	} else if err == nil && !strings.HasPrefix(strings.TrimSpace(string(out)), "[") && !strings.HasPrefix(strings.TrimSpace(string(out)), "{") {
 		t.Fatalf("expected JSON output (starting with [ or {), got: %s", string(out))
 	}

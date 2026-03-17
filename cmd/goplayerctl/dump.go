@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
+	"strings"
 
 	"github.com/arran4/go-playerctl/pkg/playerctl"
 )
@@ -91,32 +93,101 @@ func runDump(instances []string, stdout, stderr io.Writer, opts cliOptions) int 
 		p.Close()
 	}
 
-	var b []byte
-	var err error
+	if opts.json {
+		var b []byte
+		var err error
 
-	if opts.allPlayers || len(instances) > 1 {
-		if opts.indent != "" {
-			b, err = json.MarshalIndent(results, "", opts.indent)
-		} else {
-			b, err = json.Marshal(results)
-		}
-	} else {
-		if len(results) > 0 {
+		if opts.allPlayers || len(instances) > 1 {
 			if opts.indent != "" {
-				b, err = json.MarshalIndent(results[0], "", opts.indent)
+				b, err = json.MarshalIndent(results, "", opts.indent)
 			} else {
-				b, err = json.Marshal(results[0])
+				b, err = json.Marshal(results)
 			}
 		} else {
+			if len(results) > 0 {
+				if opts.indent != "" {
+					b, err = json.MarshalIndent(results[0], "", opts.indent)
+				} else {
+					b, err = json.Marshal(results[0])
+				}
+			} else {
+				return 1
+			}
+		}
+
+		if err != nil {
+			fmt.Fprintf(stderr, "failed to marshal json: %v\n", err)
 			return 1
 		}
+
+		fmt.Fprintln(stdout, string(b))
+		return 0
 	}
 
-	if err != nil {
-		fmt.Fprintf(stderr, "failed to marshal json: %v\n", err)
-		return 1
-	}
+	for i, r := range results {
+		if i > 0 {
+			fmt.Fprintln(stdout)
+			fmt.Fprintln(stdout)
+		}
 
-	fmt.Fprintln(stdout, string(b))
+		fmt.Fprintf(stdout, "Player: %s (%s)\n", r.Name, r.Instance)
+
+		if r.PlaybackStatus != nil {
+			fmt.Fprintf(stdout, "Playback Status: %s\n", *r.PlaybackStatus)
+		}
+		if r.LoopStatus != nil {
+			fmt.Fprintf(stdout, "Loop Status: %s\n", *r.LoopStatus)
+		}
+		if r.Shuffle != nil {
+			fmt.Fprintf(stdout, "Shuffle: %v\n", *r.Shuffle)
+		}
+		if r.Volume != nil {
+			fmt.Fprintf(stdout, "Volume: %f\n", *r.Volume)
+		}
+		if r.Position != nil {
+			fmt.Fprintf(stdout, "Position: %d\n", *r.Position)
+		}
+		if r.CanControl != nil {
+			fmt.Fprintf(stdout, "Can Control: %v\n", *r.CanControl)
+		}
+		if r.CanPlay != nil {
+			fmt.Fprintf(stdout, "Can Play: %v\n", *r.CanPlay)
+		}
+		if r.CanPause != nil {
+			fmt.Fprintf(stdout, "Can Pause: %v\n", *r.CanPause)
+		}
+		if r.CanSeek != nil {
+			fmt.Fprintf(stdout, "Can Seek: %v\n", *r.CanSeek)
+		}
+		if r.CanGoNext != nil {
+			fmt.Fprintf(stdout, "Can Go Next: %v\n", *r.CanGoNext)
+		}
+		if r.CanGoPrevious != nil {
+			fmt.Fprintf(stdout, "Can Go Previous: %v\n", *r.CanGoPrevious)
+		}
+
+		if len(r.Metadata) > 0 {
+			keys := make([]string, 0, len(r.Metadata))
+			for k := range r.Metadata {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+
+			for _, k := range keys {
+				v := r.Metadata[k]
+				valStr := fmt.Sprintf("%v", v)
+				if slice, ok := v.([]string); ok {
+					valStr = strings.Join(slice, ", ")
+				} else if arr, ok := v.([]interface{}); ok {
+					var strArr []string
+					for _, item := range arr {
+						strArr = append(strArr, fmt.Sprintf("%v", item))
+					}
+					valStr = strings.Join(strArr, ", ")
+				}
+				fmt.Fprintf(stdout, "%s: %s\n", k, valStr)
+			}
+		}
+	}
 	return 0
 }

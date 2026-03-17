@@ -14,13 +14,19 @@ Commands:
   rate           [RATE] Print or set the playback rate
   status         Get the play status of the player
   metadata       [KEY] Get metadata information for the current track. Print all metadata if KEY is omitted.
+  format         [STRING] Print the metadata according to a template string.
+  album          Print the album of the current track.
+  artist         Print the artist of the current track.
+  title          Print the title of the current track.
+  track          Print the track number of the current track.
   open           [URI] Command for the player to open given URI
   playing        Print a 1 liner of what's playing
   loop           [STATUS] Print or set the loop status. Can be "None", "Track", or "Playlist".
   shuffle        [STATUS] Print or set the shuffle status. Can be "On", "Off", or "Toggle".
   playlist       List the playlists available on the player.
   tracklist      List the tracks available on the player's tracklist.
-  dump           Dump the raw metadata payload.
+  dump           Dump the raw metadata payload in a human-readable format.
+  dump-json      Dump the raw metadata payload as JSON.
   tui            Enter the experimental text user interface.
 
 Options:
@@ -32,6 +38,7 @@ Options:
   --follow                Block and append lines to output when the status changes
   --follow-interval=DURATION Polling interval for follow mode.
   --indent=STRING         Indent string for JSON output (e.g. '  ' or '\t').
+  --json                  Output in JSON format (e.g. for dump).
   --tui-scheme=SCHEME     Select a keybinding scheme for the text user interface (tui). Options are: arrow, vim, winamp, emacs.
   --template-help         Print detailed help for format templates and exit.
   --version               Print version information and exit
