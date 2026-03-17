@@ -159,13 +159,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
 		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "dump-json": {}, "rate": {},
 		"playlist": {}, "tracklist": {},
+		"format": {}, "album": {}, "artist": {}, "title": {}, "track": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
 		return 2
 	}
-	if *follow && cmd != "status" && cmd != "metadata" {
-		fmt.Fprintln(stderr, "--follow is only supported for status and metadata")
+	if *follow && cmd != "status" && cmd != "metadata" && cmd != "format" && cmd != "album" && cmd != "artist" && cmd != "title" && cmd != "track" {
+		fmt.Fprintln(stderr, "--follow is only supported for status, metadata, format, album, artist, title, and track")
 		return 2
 	}
 
@@ -182,6 +183,31 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
 	}
+
+	if cmd == "format" {
+		if len(remaining) > 1 {
+			*format = remaining[1]
+			remaining = append([]string{remaining[0]}, remaining[2:]...)
+		} else {
+			fmt.Fprintln(stderr, "format command requires a template string")
+			return 2
+		}
+		cmd = "metadata"
+	} else if cmd == "album" {
+		*format = "{{.album}}"
+		cmd = "metadata"
+	} else if cmd == "artist" {
+		*format = "{{.artist}}"
+		cmd = "metadata"
+	} else if cmd == "title" {
+		*format = "{{.title}}"
+		cmd = "metadata"
+	} else if cmd == "track" {
+		// For track number, map to xesam:trackNumber which is what playerctl expects.
+		*format = `{{ index . "xesam:trackNumber" }}`
+		cmd = "metadata"
+	}
+
 	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent, tuiScheme: *tuiScheme, json: *jsonFlag}
 
 	if cmd == "dump-json" {
