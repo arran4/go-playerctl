@@ -54,8 +54,8 @@ goplayerctl [flags] <command>
 - `artist`
 - `title`
 - `track`
-- `loop [status]`
-- `shuffle [on|off|toggle]`
+- `loop [None|Track|Playlist]`
+- `shuffle [On|Off|Toggle]`
 - `volume [level]`
 - `position [offset]`
 - `rate [level]`

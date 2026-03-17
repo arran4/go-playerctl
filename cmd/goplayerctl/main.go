@@ -492,10 +492,16 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 				fmt.Fprintln(stderr, "invalid loop status")
 				return 1
 			}
+			oldStatus, err := p.LoopStatus()
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
 			if err := p.SetLoopStatus(status); err != nil {
 				fmt.Fprintln(stderr, err)
 				return 1
 			}
+			write(fmt.Sprintf("Loop status was %s and is now %s", oldStatus.String(), status.String()))
 		} else {
 			status, err := p.LoopStatus()
 			if err != nil {
