@@ -166,7 +166,7 @@ func runDump(instances []string, stdout, stderr io.Writer, opts cliOptions) int 
 			fmt.Fprintf(stdout, "Can Go Previous: %v\n", *r.CanGoPrevious)
 		}
 
-		if r.Metadata != nil && len(r.Metadata) > 0 {
+		if len(r.Metadata) > 0 {
 			keys := make([]string, 0, len(r.Metadata))
 			for k := range r.Metadata {
 				keys = append(keys, k)
