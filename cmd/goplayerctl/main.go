@@ -33,6 +33,7 @@ type cliOptions struct {
 	allPlayers bool
 	indent     string
 	tuiScheme  string
+	json       bool
 }
 
 func printUsageHelp(stdout io.Writer) {
@@ -116,6 +117,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	followInterval := fs.Duration("follow-interval", time.Second, "follow polling interval")
 	indent := fs.String("indent", "", "indent string for JSON output (e.g. '  ' or '\\t')")
 	tuiScheme := fs.String("tui-scheme", "arrow", "TUI control scheme (arrow, vim, winamp, emacs)")
+	jsonFlag := fs.Bool("json", false, "output in JSON format")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -150,7 +152,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	supported := map[string]struct{}{
 		"play": {}, "pause": {}, "play-pause": {}, "playpause": {},
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
-		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "rate": {},
+		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "dump-json": {}, "rate": {},
 		"playlist": {}, "tracklist": {},
 	}
 	if _, ok := supported[cmd]; !ok {
@@ -175,7 +177,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
 	}
-	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent, tuiScheme: *tuiScheme}
+	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent, tuiScheme: *tuiScheme, json: *jsonFlag}
+
+	if cmd == "dump-json" {
+		cmd = "dump"
+		opts.json = true
+	}
+
 	if opts.follow {
 		return followCommand(cmd, instances, stdout, stderr, opts)
 	}
