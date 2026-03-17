@@ -24,8 +24,8 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 - `metadata`
 - `tui`
 - `daemon`
-- `loop [status]`
-- `shuffle [on|off|toggle]`
+- `loop [None|Track|Playlist]`
+- `shuffle [On|Off|Toggle]`
 - `volume [level]`
 - `position [offset]`
 - `open <uri>`
