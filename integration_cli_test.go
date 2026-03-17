@@ -40,7 +40,7 @@ func TestPlayerctlMissingCommandIntegration(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected non-zero exit, output=%s", string(out))
 	}
-	if !strings.Contains(string(out), "missing command") {
+	if !strings.Contains(string(out), "Usage: goplayerctl") {
 		t.Fatalf("unexpected missing command output: %s", string(out))
 	}
 }
