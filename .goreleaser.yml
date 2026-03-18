@@ -47,7 +47,7 @@ snapcrafts:
           - desktop
           - desktop-legacy
 
-brews:
+homebrew_casks:
   -
     repository:
       owner: arran4
