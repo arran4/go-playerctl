@@ -18,7 +18,7 @@ builds:
 
 archives:
   - id: default
-    formats: [tar.gz]
+    format: tar.gz
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
@@ -47,7 +47,7 @@ snapcrafts:
           - desktop
           - desktop-legacy
 
-homebrew_casks:
+brews:
   -
     repository:
       owner: arran4
@@ -71,6 +71,3 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
-
-release:
-  replace_existing_artifacts: true
