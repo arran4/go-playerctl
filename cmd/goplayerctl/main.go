@@ -178,9 +178,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runDaemon(remaining[1:], stdout, stderr)
 	}
 
+	if *playerArg == "" && !*allPlayers {
+		*allPlayers = true
+	}
+
 	instances := selectInstances(*playerArg, *ignoreArg, *allPlayers)
 	if len(instances) == 0 && cmd != "tui" {
-		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
+		fmt.Fprintln(stderr, "No players found")
 		return 2
 	}
 

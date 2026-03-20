@@ -17,16 +17,20 @@ func TestRunValidationAndVersion(t *testing.T) {
 		t.Fatalf("version failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
 	}
 
-	out.Reset()
-	errOut.Reset()
-	code = run([]string{"status"}, &out, &errOut)
-	if code != 2 || !strings.Contains(errOut.String(), "no players selected") {
-		t.Fatalf("missing player check failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
-	}
-
 	orig := newPlayer
 	origManager := newPlayerManger
 	defer func() { newPlayer = orig; newPlayerManger = origManager }()
+	newPlayerManger = func(source playerctl.Source) (*playerctl.PlayerManager, error) {
+		return &playerctl.PlayerManager{}, nil
+	}
+
+	out.Reset()
+	errOut.Reset()
+	code = run([]string{"status"}, &out, &errOut)
+	if code != 2 || !strings.Contains(errOut.String(), "No players found") {
+		t.Fatalf("missing player check failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
+
 	newPlayer = func(instance string, source playerctl.Source) (*playerctl.Player, error) {
 		return &playerctl.Player{}, nil
 	}
