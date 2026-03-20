@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -296,31 +297,74 @@ func selectInstances(playerArg, ignoreArg string, allPlayers bool) []string {
 			ignore[v] = struct{}{}
 		}
 	}
-	if allPlayers {
-		manager, err := newPlayerManger(playerctl.SourceNone)
-		if err != nil {
-			return nil
-		}
-		instances := make([]string, 0, len(manager.PlayerNames()))
-		for _, n := range manager.PlayerNames() {
-			if _, skip := ignore[n.Instance]; !skip {
-				instances = append(instances, n.Instance)
+
+	if playerArg != "" {
+		instances := []string{}
+		for _, v := range strings.Split(playerArg, ",") {
+			v = strings.TrimSpace(v)
+			if v == "" {
+				continue
 			}
+			if _, skip := ignore[v]; skip {
+				continue
+			}
+			instances = append(instances, v)
 		}
 		return instances
 	}
-	instances := []string{}
-	for _, v := range strings.Split(playerArg, ",") {
-		v = strings.TrimSpace(v)
-		if v == "" {
-			continue
-		}
-		if _, skip := ignore[v]; skip {
-			continue
-		}
-		instances = append(instances, v)
+
+	manager, err := newPlayerManger(playerctl.SourceNone)
+	if err != nil {
+		return nil
 	}
-	return instances
+
+	type playerInfo struct {
+		instance string
+		status   playerctl.PlaybackStatus
+	}
+	var infos []playerInfo
+
+	for _, n := range manager.PlayerNames() {
+		if _, skip := ignore[n.Instance]; skip {
+			continue
+		}
+		p, err := newPlayer(n.Instance, playerctl.SourceDBusSession)
+		status := playerctl.PlaybackStatusStopped
+		if err == nil {
+			if s, err := p.PlaybackStatus(); err == nil {
+				status = s
+			}
+			p.Close()
+		}
+		infos = append(infos, playerInfo{instance: n.Instance, status: status})
+	}
+
+	sort.SliceStable(infos, func(i, j int) bool {
+		weight := func(status playerctl.PlaybackStatus) int {
+			if status == playerctl.PlaybackStatusPlaying {
+				return 0
+			}
+			if status == playerctl.PlaybackStatusPaused {
+				return 1
+			}
+			return 2
+		}
+		return weight(infos[i].status) < weight(infos[j].status)
+	})
+
+	if allPlayers {
+		var instances []string
+		for _, info := range infos {
+			instances = append(instances, info.instance)
+		}
+		return instances
+	}
+
+	if len(infos) > 0 {
+		return []string{infos[0].instance}
+	}
+
+	return nil
 }
 
 func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, error) {
