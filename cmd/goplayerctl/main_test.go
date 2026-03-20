@@ -65,6 +65,13 @@ func TestRunConnectionFailure(t *testing.T) {
 }
 
 func TestSelectInstances(t *testing.T) {
+	origManager := newPlayerManger
+	defer func() { newPlayerManger = origManager }()
+	newPlayerManger = func(source playerctl.Source) (*playerctl.PlayerManager, error) {
+		m := &playerctl.PlayerManager{}
+		return m, nil
+	}
+
 	got := selectInstances("vlc, spotify", "spotify", false)
 	if len(got) != 1 || got[0] != "vlc" {
 		t.Fatalf("selectInstances mismatch: %#v", got)
