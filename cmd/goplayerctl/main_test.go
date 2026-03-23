@@ -13,8 +13,22 @@ func TestRunValidationAndVersion(t *testing.T) {
 	var out, errOut bytes.Buffer
 
 	code := run([]string{"--version"}, &out, &errOut)
-	if code != 0 || !strings.Contains(out.String(), "go-playerctl") {
+	if code != 0 || !strings.Contains(out.String(), "goplayerctl") {
 		t.Fatalf("version failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
+	out.Reset()
+	errOut.Reset()
+
+	code = run([]string{"-v"}, &out, &errOut)
+	if code != 0 || out.Len() == 0 {
+		t.Fatalf("-v failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
+	out.Reset()
+	errOut.Reset()
+
+	code = run([]string{"version"}, &out, &errOut)
+	if code != 0 || out.Len() == 0 {
+		t.Fatalf("version command failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
 	}
 
 	out.Reset()

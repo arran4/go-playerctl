@@ -17,6 +17,7 @@ _goplayerctl_completions() {
 		open
 		loop
 		shuffle
+		version
 		-h --help
 		-p --player=
 		-a --all-players
