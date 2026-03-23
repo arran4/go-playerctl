@@ -17,7 +17,6 @@ func TestDaemonVersionAndInitFailure(t *testing.T) {
 	if code := runDaemon([]string{"--version"}, &out, &errOut); code != 0 {
 		t.Fatalf("version failed: code=%d", code)
 	}
-
 	newPlayerManger = func(source playerctl.Source) (*playerctl.PlayerManager, error) { return nil, errors.New("boom") }
 	out.Reset()
 	errOut.Reset()

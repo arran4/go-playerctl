@@ -28,14 +28,15 @@ const (
 func runDaemon(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("playerctld", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	version := fs.Bool("version", false, "print version")
+	var versionFlag bool
+	fs.BoolVar(&versionFlag, "version", false, "print version")
 	once := fs.Bool("once", false, "refresh players once and print order")
 	interval := fs.Duration("refresh-interval", 2*time.Second, "refresh interval")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if *version {
-		fmt.Fprintln(stdout, "go-playerctld (port in progress)")
+	if versionFlag {
+		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
 		return 0
 	}
 

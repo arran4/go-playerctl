@@ -49,7 +49,8 @@ _regex_words commands 'goplayerctl command' \
 	'metadata:Print the metadata information for the current track:$goplayerctl_command_metadata_keys' \
 	'open:Command the player to open the given URI' \
 	'loop:Print or set the loop status:$playercmd_loop' \
-	'shuffle:Print or set the shuffle status:$playercmd_shuffle'
+	'shuffle:Print or set the shuffle status:$playercmd_shuffle' \
+	'version:Print version information and exit'
 goplayerctl_command=( /$'[^\0]#\0'/ "$reply[@]" )
 _regex_arguments _goplayerctl_command "$goplayerctl_command[@]"
 

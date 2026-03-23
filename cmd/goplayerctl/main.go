@@ -17,6 +17,12 @@ import (
 	"github.com/arran4/go-playerctl/pkg/playerctl"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 //go:embed template_help.tmpl
 var templateHelp string
 
@@ -112,7 +118,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	ignoreArg := fs.String("ignore-player", "", "comma-separated player instances to ignore")
 	allPlayers := fs.Bool("all-players", false, "target all available players")
 	listAll := fs.Bool("list-all", false, "list all available players")
-	version := fs.Bool("version", false, "print version")
+	var versionFlag bool
+	fs.BoolVar(&versionFlag, "version", false, "print version")
 	format := fs.String("format", "", "output format template")
 	templateHelpFlag := fs.Bool("template-help", false, "print template help and exit")
 	follow := fs.Bool("follow", false, "follow output updates")
@@ -124,8 +131,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if *version {
-		fmt.Fprintln(stdout, "go-playerctl (port in progress)")
+	if versionFlag {
+		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
 		return 0
 	}
 	if *templateHelpFlag {
@@ -161,10 +168,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
 		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "dump-json": {}, "rate": {},
 		"playlist": {}, "tracklist": {}, "playing": {}, "format": {}, "album": {}, "artist": {}, "title": {}, "track": {},
+		"version": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
 		return 2
+	}
+
+	if cmd == "version" {
+		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
+		return 0
 	}
 	if *follow && cmd != "status" && cmd != "metadata" && cmd != "format" && cmd != "album" && cmd != "artist" && cmd != "title" && cmd != "track" {
 		fmt.Fprintln(stderr, "--follow is only supported for status, metadata, format, album, artist, title, and track")

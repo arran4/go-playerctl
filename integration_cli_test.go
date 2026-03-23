@@ -12,7 +12,7 @@ func TestPlayerctlVersionCommandIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go run --version failed: %v output=%s", err, string(out))
 	}
-	if !strings.Contains(string(out), "go-playerctl") {
+	if !strings.Contains(string(out), "goplayerctl") {
 		t.Fatalf("unexpected version output: %s", string(out))
 	}
 }
