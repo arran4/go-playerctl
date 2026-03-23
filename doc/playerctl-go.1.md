@@ -42,7 +42,7 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 - `--follow`: keep polling and print value changes.
 - `--follow-interval`: polling interval (default: 1s).
 - `--tui-scheme`: TUI control scheme (arrow, vim, winamp, emacs).
-- `-v`, `--version`: print version string.
+- `--version`: print version string.
 
 # EXAMPLES
 

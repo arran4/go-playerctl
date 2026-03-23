@@ -120,7 +120,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	listAll := fs.Bool("list-all", false, "list all available players")
 	var versionFlag bool
 	fs.BoolVar(&versionFlag, "version", false, "print version")
-	fs.BoolVar(&versionFlag, "v", false, "print version")
 	format := fs.String("format", "", "output format template")
 	templateHelpFlag := fs.Bool("template-help", false, "print template help and exit")
 	follow := fs.Bool("follow", false, "follow output updates")
