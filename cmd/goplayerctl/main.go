@@ -42,6 +42,7 @@ type cliOptions struct {
 	indent     string
 	tuiScheme  string
 	json       bool
+	args       []string
 }
 
 func printUsageHelp(stdout io.Writer) {
@@ -128,9 +129,20 @@ func run(args []string, stdout, stderr io.Writer) int {
 	tuiScheme := fs.String("tui-scheme", "arrow", "TUI control scheme (arrow, vim, winamp, emacs)")
 	jsonFlag := fs.Bool("json", false, "output in JSON format")
 
-	if err := fs.Parse(args); err != nil {
-		return 2
+	var remaining []string
+	parseArgs := args
+	for len(parseArgs) > 0 {
+		if err := fs.Parse(parseArgs); err != nil {
+			return 2
+		}
+		if fs.NArg() > 0 {
+			remaining = append(remaining, fs.Arg(0))
+			parseArgs = fs.Args()[1:]
+		} else {
+			break
+		}
 	}
+
 	if versionFlag {
 		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
 		return 0
@@ -151,7 +163,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 
-	remaining := fs.Args()
 	if len(remaining) == 0 {
 		printUsageHelp(stderr)
 		return 2
@@ -222,7 +233,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 		cmd = "metadata"
 	}
 
-	opts := cliOptions{format: *format, follow: *follow, followTick: *followInterval, allPlayers: *allPlayers, indent: *indent, tuiScheme: *tuiScheme, json: *jsonFlag}
+	opts := cliOptions{
+		format:     *format,
+		follow:     *follow,
+		followTick: *followInterval,
+		allPlayers: *allPlayers,
+		indent:     *indent,
+		tuiScheme:  *tuiScheme,
+		json:       *jsonFlag,
+	}
+
+	if len(remaining) > 1 {
+		opts.args = remaining[1:]
+	}
 
 	if cmd == "dump-json" {
 		cmd = "dump"
@@ -484,6 +507,23 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 			}
 			return "", nil
 		}
+
+		// If metadata command was provided with a specific key to query
+		if cmd == "metadata" && len(opts.args) > 0 {
+			key := opts.args[0]
+			if v, ok := ctx[key].(string); ok {
+				return v, nil
+			}
+			// Fallback to checking colon-replaced keys if user specified with colon
+			if strings.Contains(key, ":") {
+				replaced := strings.ReplaceAll(key, ":", "_")
+				if v, ok := ctx[replaced].(string); ok {
+					return v, nil
+				}
+			}
+			return "", nil
+		}
+
 		if t, ok := ctx["title"].(string); ok {
 			return t, nil
 		}

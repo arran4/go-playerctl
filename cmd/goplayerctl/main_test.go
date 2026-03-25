@@ -24,13 +24,6 @@ func TestRunValidationAndVersion(t *testing.T) {
 		t.Fatalf("version command failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
 	}
 
-	out.Reset()
-	errOut.Reset()
-	code = run([]string{"status"}, &out, &errOut)
-	if code != 2 || !strings.Contains(errOut.String(), "no players selected") {
-		t.Fatalf("missing player check failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
-	}
-
 	orig := newPlayer
 	origManager := newPlayerManger
 	defer func() { newPlayer = orig; newPlayerManger = origManager }()
@@ -39,6 +32,13 @@ func TestRunValidationAndVersion(t *testing.T) {
 	}
 	newPlayerManger = func(source playerctl.Source) (*playerctl.PlayerManager, error) {
 		return &playerctl.PlayerManager{}, nil
+	}
+
+	out.Reset()
+	errOut.Reset()
+	code = run([]string{"status"}, &out, &errOut)
+	if code != 2 || !strings.Contains(errOut.String(), "no players selected") {
+		t.Fatalf("missing player check failed: code=%d out=%q err=%q", code, out.String(), errOut.String())
 	}
 
 	out.Reset()
@@ -104,5 +104,23 @@ func TestRunFollowValidation(t *testing.T) {
 	code := run([]string{"--player", "vlc", "--follow", "play"}, &out, &errOut)
 	if code != 2 || !strings.Contains(errOut.String(), "only supported") {
 		t.Fatalf("follow validation failed code=%d err=%q", code, errOut.String())
+	}
+}
+
+func TestRunFlagParsing(t *testing.T) {
+	orig := newPlayer
+	defer func() { newPlayer = orig }()
+
+	newPlayer = func(instance string, source playerctl.Source) (*playerctl.Player, error) {
+		return nil, errors.New("dummy connect failed")
+	}
+
+	var out, errOut bytes.Buffer
+	// Check that we can parse metadata command followed by flags
+	code := run([]string{"metadata", "--format", "{{ artist }}", "--player", "dummy"}, &out, &errOut)
+
+	// Should fail with connect failed, not invalid flag or missing player
+	if code != 1 || !strings.Contains(errOut.String(), "dummy connect failed") {
+		t.Fatalf("expected connect failure but got code=%d out=%q err=%q", code, out.String(), errOut.String())
 	}
 }
