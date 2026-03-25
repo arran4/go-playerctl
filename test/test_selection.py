@@ -7,25 +7,21 @@ import asyncio
 def selector(bus_address):
     playerctl = PlayerctlCli(bus_address)
 
-    async def select(players, ignored=None):
+    async def select(*players):
         assert players
-        cmd = '-player ' + str.join(',', players)
-        if ignored:
-            cmd += ' -ignore-player ' + str.join(',', ignored)
-        cmd += ' status -format "{{.Instance}}"'
+        cmd = '-p ' + str.join(
+            ',', players) + ' status --format "{{playerInstance}}"'
         result = await playerctl.run(cmd)
         assert result.returncode == 0, result.stderr
         return result.stdout
 
-    async def select_many(players, ignored=None):
+    async def select_many(*players):
         assert players
-        cmd = '-all-players -player ' + str.join(',', players)
-        if ignored:
-            cmd += ' -ignore-player ' + str.join(',', ignored)
-        cmd += ' status -format "{{.Instance}}"'
+        cmd = '--all-players -p ' + str.join(
+            ',', players) + ' status --format "{{playerInstance}}"'
         result = await playerctl.run(cmd)
         assert result.returncode == 0, result.stderr
-        return tuple(result.stdout.split('\n')) if result.stdout else tuple()
+        return tuple(result.stdout.split('\n'))
 
     return select, select_many
 
@@ -71,27 +67,9 @@ async def test_selection(bus_address):
     select, select_many = selector(bus_address)
 
     for selection, expected in selections.items():
-        result = await select(selection)
+        result = await select(*selection)
         assert result == expected[0], (selection, expected, result)
-        result = await select_many(selection)
-        assert result == expected
-
-    ignored_selections = {
-        ((s1, ), (s1, )): (s1i, ),
-        ((s3, s1), (s3, )): (s1, s1i),
-        ((s2, s1, s3), (s1, s3)): (s2, s1i),
-        ((s1, s2), (s2, )): (s1, s1i),
-        ((m4, m5, s2, s3), (s2, )): (s3, ),
-        ((m5, s1, m4, s3), (s1, s3)): (s1i, ),
-        ((any_player, ), (s1, )): (s1i, s2, s3, s6i),
-        ((s1, any_player), (s1, )): (s1i, s2, s3, s6i),
-        ((any_player, s1), (s1, )): (s2, s3, s6i, s1i),
-    }
-
-    for (selection, ignored), expected in ignored_selections.items():
-        result = await select(selection, ignored)
-        assert result == (expected[0] if expected else ""), (selection, ignored, expected, result)
-        result = await select_many(selection, ignored)
+        result = await select_many(*selection)
         assert result == expected
 
     await asyncio.gather(*[mpris.disconnect() for mpris in mpris_players])

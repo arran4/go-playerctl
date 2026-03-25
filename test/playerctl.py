@@ -48,7 +48,7 @@ class PlayerctlCli:
 
     async def _start(self, cmd):
         env = os.environ.copy()
-        shell_cmd = f'goplayerctl {cmd}'
+        shell_cmd = f'playerctl {cmd}'
 
         if self.bus_address:
             env['DBUS_SESSION_BUS_ADDRESS'] = self.bus_address
@@ -72,13 +72,13 @@ class PlayerctlCli:
         return CommandResult(stdout, stderr, proc.returncode)
 
     async def list(self, players=[], ignored=[]):
-        args = ['-list-all']
+        args = ['--list-all']
 
         if players:
-            args.extend(['-player', ','.join(players)])
+            args.extend(['--player', ','.join(players)])
 
         if ignored:
-            args.extend(['-ignore-player', ','.join(ignored)])
+            args.extend(['--ignored-players', ','.join(ignored)])
 
         cmd = await self.run(join(args))
         assert cmd.returncode == 0, cmd.stderr
