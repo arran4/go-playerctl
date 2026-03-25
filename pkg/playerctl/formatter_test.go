@@ -87,3 +87,40 @@ func TestFormatterHelperParityFunctions(t *testing.T) {
 		t.Fatalf("helper parity mismatch: %q", got)
 	}
 }
+
+func TestFormatterExpandBareWords(t *testing.T) {
+	f, err := NewFormatter("{{ artist }} - {{ default title \"Untitled\" }}")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := f.Expand(map[string]any{"artist": "Boards of Canada", "title": "Dayvan Cowboy"})
+	if err != nil || got != "Boards of Canada - Dayvan Cowboy" {
+		t.Fatalf("Expand bare words = %q, err=%v", got, err)
+	}
+}
+
+func TestFormatterExpandBareWordsMissing(t *testing.T) {
+	f, err := NewFormatter("{{ artist }} - {{ default title \"Untitled\" }}")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := f.Expand(map[string]any{"artist": "Boards of Canada"})
+	if err != nil || got != "Boards of Canada - Untitled" {
+		t.Fatalf("Expand missing bare words = %q, err=%v", got, err)
+	}
+}
+
+func TestFormatterBuiltinFunctions(t *testing.T) {
+	// Verify that the built-in functions still work and aren't overwritten
+	f, err := NewFormatter("{{ if eq .status \"Playing\" }}Yes{{ end }} - {{ len .title }} - {{ print .artist }}")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := f.Expand(map[string]any{"status": "Playing", "title": "12345", "artist": "Boards"})
+	if err != nil || got != "Yes - 5 - Boards" {
+		t.Fatalf("Expand built-ins = %q, err=%v", got, err)
+	}
+}

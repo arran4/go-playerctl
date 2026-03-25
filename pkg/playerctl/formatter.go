@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -14,6 +15,23 @@ type Formatter struct {
 	raw  string
 	tmpl *template.Template
 }
+
+var (
+	formatWordRe = regexp.MustCompile(`[a-zA-Z_][a-zA-Z0-9_]*`)
+	formatExprRe = regexp.MustCompile(`(?s)\{\{(.*?)\}\}`)
+
+	predefinedTemplateFuncs = map[string]bool{
+		"lc": true, "uc": true, "add": true, "sub": true, "default": true,
+		"duration": true, "markup_escape": true, "emoji": true, "trunc": true,
+		"has_playlist": true, "has_tracklist": true,
+		"if": true, "else": true, "end": true, "range": true, "with": true,
+		"and": true, "or": true, "not": true, "len": true, "index": true,
+		"true": true, "false": true, "nil": true,
+		"eq": true, "ne": true, "lt": true, "le": true, "gt": true, "ge": true,
+		"print": true, "printf": true, "println": true,
+		"call": true, "html": true, "js": true, "urlquery": true,
+	}
+)
 
 func helperDuration(input string) string {
 	if input == "" {
@@ -58,6 +76,11 @@ func helperTrunc(v string, max int) string {
 	return v[:max-1] + "…"
 }
 
+// isPredefined checks if a given word is a Go template built-in function or keyword.
+func isPredefined(word string) bool {
+	return predefinedTemplateFuncs[word]
+}
+
 // NewFormatter constructs a formatter for a template string.
 func NewFormatter(format string) (*Formatter, error) {
 	if strings.TrimSpace(format) == "" {
@@ -69,29 +92,43 @@ func NewFormatter(format string) (*Formatter, error) {
 	processedFormat := strings.ReplaceAll(format, ".mpris:", ".mpris_")
 	processedFormat = strings.ReplaceAll(processedFormat, ".xesam:", ".xesam_")
 
+	funcs := template.FuncMap{
+		"lc":  strings.ToLower,
+		"uc":  strings.ToUpper,
+		"add": func(a, b int) int { return a + b },
+		"sub": func(a, b int) int { return a - b },
+		"default": func(v any, fallback string) string {
+			if v == nil {
+				return fallback
+			}
+			str, ok := v.(string)
+			if !ok || str == "" {
+				return fallback
+			}
+			return str
+		},
+		"duration":      helperDuration,
+		"markup_escape": html.EscapeString,
+		"emoji":         helperEmoji,
+		"trunc":         helperTrunc,
+		"has_playlist":  func(count string) bool { return count != "" && count != "0" },
+		"has_tracklist": func(count string) bool { return count != "" && count != "0" },
+	}
+
+	// Pre-define all words in the format as dummy functions so that template.Parse succeeds.
+	for _, match := range formatExprRe.FindAllString(processedFormat, -1) {
+		for _, word := range formatWordRe.FindAllString(match, -1) {
+			if isPredefined(word) {
+				continue
+			}
+			if _, ok := funcs[word]; !ok {
+				funcs[word] = func() string { return "" }
+			}
+		}
+	}
+
 	tmpl, err := template.New("playerctl-format").
-		Funcs(template.FuncMap{
-			"lc":  strings.ToLower,
-			"uc":  strings.ToUpper,
-			"add": func(a, b int) int { return a + b },
-			"sub": func(a, b int) int { return a - b },
-			"default": func(v any, fallback string) string {
-				if v == nil {
-					return fallback
-				}
-				str, ok := v.(string)
-				if !ok || str == "" {
-					return fallback
-				}
-				return str
-			},
-			"duration":      helperDuration,
-			"markup_escape": html.EscapeString,
-			"emoji":         helperEmoji,
-			"trunc":         helperTrunc,
-			"has_playlist":  func(count string) bool { return count != "" && count != "0" },
-			"has_tracklist": func(count string) bool { return count != "" && count != "0" },
-		}).
+		Funcs(funcs).
 		Option("missingkey=zero").
 		Parse(processedFormat)
 	if err != nil {
@@ -112,8 +149,23 @@ func (f *Formatter) ContainsKey(key string) bool {
 
 // Expand substitutes template variables using values from context.
 func (f *Formatter) Expand(context map[string]any) (string, error) {
+	clone, err := f.tmpl.Clone()
+	if err != nil {
+		return "", FormatError{Message: fmt.Sprintf("failed to clone template: %v", err)}
+	}
+
+	expandFuncs := template.FuncMap{}
+	for key, val := range context {
+		if !isPredefined(key) {
+			v := val
+			expandFuncs[key] = func() any { return v }
+		}
+	}
+
+	clone.Funcs(expandFuncs)
+
 	var b bytes.Buffer
-	if err := f.tmpl.Execute(&b, context); err != nil {
+	if err := clone.Execute(&b, context); err != nil {
 		return "", FormatError{Message: fmt.Sprintf("template execution failed: %v", err)}
 	}
 	return b.String(), nil
