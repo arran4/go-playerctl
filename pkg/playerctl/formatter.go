@@ -17,8 +17,8 @@ type Formatter struct {
 }
 
 var (
-	formatWordRe = regexp.MustCompile(`[a-zA-Z_][a-zA-Z0-9_]*`)
-	formatExprRe = regexp.MustCompile(`(?s)\{\{(.*?)\}\}`)
+	formatWordRe  = regexp.MustCompile(`[a-zA-Z_][a-zA-Z0-9_]*`)
+	formatExprRe  = regexp.MustCompile(`(?s)\{\{(.*?)\}\}`)
 	formatIdentRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 	predefinedTemplateFuncs = map[string]bool{
@@ -155,8 +155,36 @@ func (f *Formatter) Expand(context map[string]any) (string, error) {
 		return "", FormatError{Message: fmt.Sprintf("failed to clone template: %v", err)}
 	}
 
-	expandFuncs := template.FuncMap{}
+	newContext := make(map[string]any, len(context))
+	for k, v := range context {
+		newContext[k] = v
+	}
+
+	submaps := make(map[string]map[string]any)
 	for key, val := range context {
+		parts := strings.Split(key, ":")
+		if len(parts) > 1 {
+			prefix := parts[0]
+			subKey := strings.Join(parts[1:], ":")
+			if submaps[prefix] == nil {
+				submaps[prefix] = make(map[string]any)
+			}
+			submaps[prefix][subKey] = val
+
+			lastPart := parts[len(parts)-1]
+			if _, exists := newContext[lastPart]; !exists {
+				newContext[lastPart] = val
+			}
+		}
+	}
+	for k, v := range submaps {
+		if _, exists := newContext[k]; !exists {
+			newContext[k] = v
+		}
+	}
+
+	expandFuncs := template.FuncMap{}
+	for key, val := range newContext {
 		if !isPredefined(key) && formatIdentRe.MatchString(key) {
 			v := val
 			expandFuncs[key] = func() any { return v }
@@ -166,7 +194,7 @@ func (f *Formatter) Expand(context map[string]any) (string, error) {
 	clone.Funcs(expandFuncs)
 
 	var b bytes.Buffer
-	if err := clone.Execute(&b, context); err != nil {
+	if err := clone.Execute(&b, newContext); err != nil {
 		return "", FormatError{Message: fmt.Sprintf("template execution failed: %v", err)}
 	}
 	return b.String(), nil
