@@ -57,7 +57,6 @@ func TestPlayerManagerNameOwnerChangedAndMoveTop(t *testing.T) {
 	}
 }
 
-
 func TestPlayerManagerFilterPlayerNamesIgnored(t *testing.T) {
 	s1 := "selection1"
 	s1i := "selection1.i_123"
