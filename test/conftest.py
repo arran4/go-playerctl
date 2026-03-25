@@ -1,8 +1,9 @@
 import pytest
 import asyncio
+import pytest_asyncio
 
 
-@pytest.fixture()
+@pytest_asyncio.fixture()
 async def bus_address(scope='class'):
     proc = await asyncio.create_subprocess_shell(
         'dbus-launch', stdout=asyncio.subprocess.PIPE)
