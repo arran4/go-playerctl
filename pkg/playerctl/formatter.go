@@ -19,6 +19,7 @@ type Formatter struct {
 var (
 	formatWordRe = regexp.MustCompile(`[a-zA-Z_][a-zA-Z0-9_]*`)
 	formatExprRe = regexp.MustCompile(`(?s)\{\{(.*?)\}\}`)
+	formatIdentRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 	predefinedTemplateFuncs = map[string]bool{
 		"lc": true, "uc": true, "add": true, "sub": true, "default": true,
@@ -156,7 +157,7 @@ func (f *Formatter) Expand(context map[string]any) (string, error) {
 
 	expandFuncs := template.FuncMap{}
 	for key, val := range context {
-		if !isPredefined(key) {
+		if !isPredefined(key) && formatIdentRe.MatchString(key) {
 			v := val
 			expandFuncs[key] = func() any { return v }
 		}
