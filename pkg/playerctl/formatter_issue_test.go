@@ -18,6 +18,24 @@ func TestFormatterIssue(t *testing.T) {
 			},
 			want: "Test",
 		},
+		{
+			name:   "expand album bareword",
+			format: "{{ album }}",
+			context: map[string]any{
+				"xesam:album": "The Album",
+			},
+			want: "The Album",
+		},
+		{
+			name:   "expand multiple properties and sub-maps",
+			format: "{{ .xesam.album }} - {{ .mpris.trackid }} - {{ length }}",
+			context: map[string]any{
+				"xesam:album":   "The Album",
+				"mpris:trackid": "123",
+				"mpris:length":  456,
+			},
+			want: "The Album - 123 - 456",
+		},
 	}
 
 	for _, tt := range tests {
