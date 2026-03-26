@@ -6,7 +6,7 @@ playerctl-go - control MPRIS media players from the Go port CLI
 
 # SYNOPSIS
 
-`goplayerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND`
+`goplayerctl [-v, --version] [-l, --list-all] [-a, --all-players] [-p, --player NAMES] [-i, --ignore-player NAMES] [-f, --format TEMPLATE] [-F, --follow] [--follow-interval DURATION] COMMAND`
 
 # DESCRIPTION
 
@@ -33,16 +33,16 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 
 # OPTIONS
 
-- `--player`: comma-separated instance list.
-- `--ignore-player`: comma-separated instance ignore list.
-- `--all-players`: target all discovered players.
-- `--list-all`: print discovered player names.
-- `--format`: Go template format string.
+- `-p, --player`: comma-separated instance list.
+- `-i, --ignore-player`: comma-separated instance ignore list.
+- `-a, --all-players`: target all discovered players.
+- `-l, --list-all`: print discovered player names.
+- `-f, --format`: Go template format string.
 - `--template-help`: print detailed help for format templates and exit.
-- `--follow`: keep polling and print value changes.
+- `-F, --follow`: keep polling and print value changes.
 - `--follow-interval`: polling interval (default: 1s).
 - `--tui-scheme`: TUI control scheme (arrow, vim, winamp, emacs).
-- `--version`: print version string.
+- `-v, --version`: print version string.
 
 # EXAMPLES
 

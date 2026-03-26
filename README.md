@@ -30,12 +30,12 @@ goplayerctl [flags] <command>
 
 ### Supported flags
 
-- `--player` comma-separated instance list (for example `vlc,spotify`)
-- `--ignore-player` comma-separated instance ignore list
-- `--all-players` run query/action for all discovered players
-- `--list-all` print discovered player instances
-- `--format` output format using Go template syntax
-- `--follow` poll and print changes for query commands
+- `-p, --player` comma-separated instance list (for example `vlc,spotify`)
+- `-i, --ignore-player` comma-separated instance ignore list
+- `-a, --all-players` run query/action for all discovered players
+- `-l, --list-all` print discovered player instances
+- `-f, --format` output format using Go template syntax
+- `-F, --follow` poll and print changes for query commands
 - `--follow-interval` polling period for `--follow`
 - `--tui-scheme` TUI control scheme (arrow, vim, winamp, emacs)
 - `--version` print CLI version string

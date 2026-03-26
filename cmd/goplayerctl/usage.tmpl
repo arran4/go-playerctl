@@ -31,16 +31,16 @@ Commands:
   version        Print version information and exit
 
 Options:
-  --player=NAME           A comma separated list of names of players to control. Wildcards are supported.
-  --ignore-player=NAME    A comma separated list of names of players to ignore. Wildcards are supported.
-  --all-players           Control all available players
-  --list-all              List the names of running players that can be controlled
-  --format=FORMAT         A format string for printing properties and metadata
-  --follow                Block and append lines to output when the status changes
+  -p, --player=NAME       A comma separated list of names of players to control. Wildcards are supported.
+  -i, --ignore-player=NAME A comma separated list of names of players to ignore. Wildcards are supported.
+  -a, --all-players       Control all available players
+  -l, --list-all          List the names of running players that can be controlled
+  -f, --format=FORMAT     A format string for printing properties and metadata
+  -F, --follow            Block and append lines to output when the status changes
   --follow-interval=DURATION Polling interval for follow mode.
   --indent=STRING         Indent string for JSON output (e.g. '  ' or '\t').
   --json                  Output in JSON format (e.g. for dump).
   --tui-scheme=SCHEME     Select a keybinding scheme for the text user interface (tui). Options are: arrow, vim, winamp, emacs.
   --template-help         Print detailed help for format templates and exit.
-  --version               Print version information and exit
+  -v, --version           Print version information and exit
   -h, --help              Show this help message and exit
