@@ -34,6 +34,17 @@ var (
 	newPlayerManger = playerctl.NewPlayerManager
 )
 
+type stringSlice []string
+
+func (i *stringSlice) String() string {
+	return strings.Join(*i, ",")
+}
+
+func (i *stringSlice) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
 type cliOptions struct {
 	format     string
 	follow     bool
@@ -115,19 +126,31 @@ func run(args []string, stdout, stderr io.Writer) int {
 		printUsageHelp(stderr)
 	}
 
-	playerArg := fs.String("player", "", "comma-separated player instances to control")
-	ignoreArg := fs.String("ignore-player", "", "comma-separated player instances to ignore")
-	allPlayers := fs.Bool("all-players", false, "target all available players")
-	listAll := fs.Bool("list-all", false, "list all available players")
-	var versionFlag bool
+	var playerArg, ignoreArg stringSlice
+	fs.Var(&playerArg, "player", "comma-separated player instances to control")
+	fs.Var(&playerArg, "p", "comma-separated player instances to control")
+	fs.Var(&ignoreArg, "ignore-player", "comma-separated player instances to ignore")
+	fs.Var(&ignoreArg, "i", "comma-separated player instances to ignore")
+
+	var allPlayers, listAll, follow, versionFlag, templateHelpFlag, jsonFlag bool
+	fs.BoolVar(&allPlayers, "all-players", false, "target all available players")
+	fs.BoolVar(&allPlayers, "a", false, "target all available players")
+	fs.BoolVar(&listAll, "list-all", false, "list all available players")
+	fs.BoolVar(&listAll, "l", false, "list all available players")
 	fs.BoolVar(&versionFlag, "version", false, "print version")
-	format := fs.String("format", "", "output format template")
-	templateHelpFlag := fs.Bool("template-help", false, "print template help and exit")
-	follow := fs.Bool("follow", false, "follow output updates")
+	fs.BoolVar(&versionFlag, "v", false, "print version")
+	fs.BoolVar(&templateHelpFlag, "template-help", false, "print template help and exit")
+	fs.BoolVar(&follow, "follow", false, "follow output updates")
+	fs.BoolVar(&follow, "F", false, "follow output updates")
+	fs.BoolVar(&jsonFlag, "json", false, "output in JSON format")
+
+	var format string
+	fs.StringVar(&format, "format", "", "output format template")
+	fs.StringVar(&format, "f", "", "output format template")
+
 	followInterval := fs.Duration("follow-interval", time.Second, "follow polling interval")
 	indent := fs.String("indent", "", "indent string for JSON output (e.g. '  ' or '\\t')")
 	tuiScheme := fs.String("tui-scheme", "arrow", "TUI control scheme (arrow, vim, winamp, emacs)")
-	jsonFlag := fs.Bool("json", false, "output in JSON format")
 
 	var remaining []string
 	parseArgs := args
@@ -147,11 +170,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
 		return 0
 	}
-	if *templateHelpFlag {
+	if templateHelpFlag {
 		printTemplateHelp(stdout)
 		return 0
 	}
-	if *listAll {
+	if listAll {
 		manager, err := newPlayerManger(playerctl.SourceNone)
 		if err != nil {
 			fmt.Fprintf(stderr, "failed to list players: %v\n", err)
@@ -190,7 +213,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
 		return 0
 	}
-	if *follow && cmd != "status" && cmd != "metadata" && cmd != "format" && cmd != "album" && cmd != "artist" && cmd != "title" && cmd != "track" {
+	if follow && cmd != "status" && cmd != "metadata" && cmd != "format" && cmd != "album" && cmd != "artist" && cmd != "title" && cmd != "track" {
 		fmt.Fprintln(stderr, "--follow is only supported for status, metadata, format, album, artist, title, and track")
 		return 2
 	}
@@ -203,7 +226,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runDaemon(remaining[1:], stdout, stderr)
 	}
 
-	instances := selectInstances(*playerArg, *ignoreArg, *allPlayers)
+	instances := selectInstances(playerArg, ignoreArg, allPlayers)
 	if len(instances) == 0 && cmd != "tui" {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
@@ -211,7 +234,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	if cmd == "format" {
 		if len(remaining) > 1 {
-			*format = remaining[1]
+			format = remaining[1]
 			remaining = append([]string{remaining[0]}, remaining[2:]...)
 		} else {
 			fmt.Fprintln(stderr, "format command requires a template string")
@@ -219,28 +242,28 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		cmd = "metadata"
 	} else if cmd == "album" {
-		*format = "{{.album}}"
+		format = "{{.album}}"
 		cmd = "metadata"
 	} else if cmd == "artist" {
-		*format = "{{.artist}}"
+		format = "{{.artist}}"
 		cmd = "metadata"
 	} else if cmd == "title" {
-		*format = "{{.title}}"
+		format = "{{.title}}"
 		cmd = "metadata"
 	} else if cmd == "track" {
 		// For track number, map to xesam:trackNumber which is what playerctl expects.
-		*format = `{{ index . "xesam:trackNumber" }}`
+		format = `{{ index . "xesam:trackNumber" }}`
 		cmd = "metadata"
 	}
 
 	opts := cliOptions{
-		format:     *format,
-		follow:     *follow,
+		format:     format,
+		follow:     follow,
 		followTick: *followInterval,
-		allPlayers: *allPlayers,
+		allPlayers: allPlayers,
 		indent:     *indent,
 		tuiScheme:  *tuiScheme,
-		json:       *jsonFlag,
+		json:       jsonFlag,
 	}
 
 	if len(remaining) > 1 {
@@ -268,7 +291,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		p, err := newPlayer(instance, playerctl.SourceDBusSession)
 		if err != nil {
 			fmt.Fprintf(stderr, "failed to connect player %q: %v\n", instance, err)
-			if !*allPlayers {
+			if !allPlayers {
 				return 1
 			}
 			continue
@@ -280,7 +303,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 		if code := runCommand(cmd, p, stdout, stderr, opts, cmdArgs); code != 0 {
 			p.Close()
-			if !*allPlayers {
+			if !allPlayers {
 				return code
 			}
 		}
@@ -325,26 +348,30 @@ func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opt
 	}
 }
 
-func selectInstances(playerArg, ignoreArg string, allPlayers bool) []string {
+func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {
 	ignore := map[string]struct{}{}
-	for _, v := range strings.Split(ignoreArg, ",") {
-		v = strings.TrimSpace(v)
-		if v != "" {
-			ignore[v] = struct{}{}
+	for _, arg := range ignoreArg {
+		for _, v := range strings.Split(arg, ",") {
+			v = strings.TrimSpace(v)
+			if v != "" {
+				ignore[v] = struct{}{}
+			}
 		}
 	}
 
-	if playerArg != "" {
-		instances := []string{}
-		for _, v := range strings.Split(playerArg, ",") {
-			v = strings.TrimSpace(v)
-			if v == "" {
-				continue
+	if len(playerArg) > 0 {
+		var instances []string
+		for _, arg := range playerArg {
+			for _, v := range strings.Split(arg, ",") {
+				v = strings.TrimSpace(v)
+				if v == "" {
+					continue
+				}
+				if _, skip := ignore[v]; skip {
+					continue
+				}
+				instances = append(instances, v)
 			}
-			if _, skip := ignore[v]; skip {
-				continue
-			}
-			instances = append(instances, v)
 		}
 		return instances
 	}
