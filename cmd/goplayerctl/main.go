@@ -317,7 +317,6 @@ func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opt
 		opts.followTick = time.Second
 	}
 	last := map[string]string{}
-	deadline := time.After(3 * opts.followTick)
 	tick := time.NewTicker(opts.followTick)
 	defer tick.Stop()
 	for {
@@ -340,11 +339,7 @@ func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opt
 				last[instance] = line
 			}
 		}
-		select {
-		case <-deadline:
-			return 0
-		case <-tick.C:
-		}
+		<-tick.C
 	}
 }
 

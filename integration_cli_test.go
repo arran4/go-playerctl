@@ -1,9 +1,11 @@
 package integration_test
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPlayerctlVersionCommandIntegration(t *testing.T) {
@@ -65,5 +67,29 @@ func TestPlayerctlDumpCommandIntegration(t *testing.T) {
 		t.Logf("Warning: go run --all-players dump-json returned err=%v, output=%s", err, string(out))
 	} else if err == nil && !strings.HasPrefix(strings.TrimSpace(string(out)), "[") && !strings.HasPrefix(strings.TrimSpace(string(out)), "{") {
 		t.Fatalf("expected JSON output (starting with [ or {), got: %s", string(out))
+	}
+}
+
+func TestPlayerctlFollowIntegration(t *testing.T) {
+	// The follow command should continue running until cancelled,
+	// rather than terminating early (e.g., after 3 intervals).
+	// We set a 500ms timeout context and a 100ms follow interval.
+	// We expect the command to hit the context timeout and be killed,
+	// returning a non-nil error, rather than exiting cleanly beforehand.
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", "run", "./cmd/goplayerctl", "--player", "mock", "--follow", "--follow-interval", "100ms", "status")
+	err := cmd.Run()
+
+	// A nil error means the command exited cleanly before our timeout, which would be a bug.
+	if err == nil {
+		t.Fatalf("expected command to run until context timeout, but it exited cleanly with nil error")
+	}
+
+	// We expect it to be killed by context cancellation
+	if ctx.Err() != context.DeadlineExceeded {
+		t.Fatalf("expected context to have DeadlineExceeded, got: %v, cmd error: %v", ctx.Err(), err)
 	}
 }
