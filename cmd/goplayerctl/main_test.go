@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/arran4/go-playerctl/pkg/playerctl"
 )
@@ -122,5 +123,31 @@ func TestRunFlagParsing(t *testing.T) {
 	// Should fail with connect failed, not invalid flag or missing player
 	if code != 1 || !strings.Contains(errOut.String(), "dummy connect failed") {
 		t.Fatalf("expected connect failure but got code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
+}
+
+func TestRunFollowBlocksIndefinitely(t *testing.T) {
+	orig := newPlayer
+	defer func() { newPlayer = orig }()
+
+	newPlayer = func(instance string, source playerctl.Source) (*playerctl.Player, error) {
+		// We need to return a fully mocked player to prevent Close() from panicking on a nil channel
+		return playerctl.NewPlayer("dummy", playerctl.SourceNone)
+	}
+
+	// Create channels to signal completion
+	done := make(chan int)
+
+	var out, errOut bytes.Buffer
+	go func() {
+		// Run follow, which should block
+		done <- run([]string{"--player", "dummy", "--follow", "--follow-interval", "100ms", "status"}, &out, &errOut)
+	}()
+
+	select {
+	case <-done:
+		t.Fatalf("expected --follow to block, but it returned early")
+	case <-time.After(500 * time.Millisecond):
+		// This is the expected path: the command is still running
 	}
 }
