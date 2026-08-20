@@ -118,7 +118,7 @@ func printTemplateHelp(stdout io.Writer) {
 	}
 }
 
-func run(args []string, stdout, stderr io.Writer) int {
+func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	fs := flag.NewFlagSet("playerctl", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 
@@ -276,7 +276,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if opts.follow {
-		return followCommand(cmd, instances, stdout, stderr, opts)
+		return followCommand(cmd, instances, stdout, stderr, opts, ops...)
 	}
 
 	if cmd == "tui" {
@@ -312,21 +312,55 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opts cliOptions) int {
-	if opts.followTick <= 0 {
-		opts.followTick = time.Second
+type followExecutor interface {
+	Query(cmd, instance string, opts cliOptions) (string, error)
+	Wait() bool
+}
+
+type realFollowExecutor struct {
+	tick *time.Ticker
+}
+
+func (r *realFollowExecutor) Query(cmd, instance string, opts cliOptions) (string, error) {
+	p, err := newPlayer(instance, playerctl.SourceDBusSession)
+	if err != nil {
+		return "", err
 	}
+	defer p.Close()
+	return queryOutput(cmd, p, opts)
+}
+
+func (r *realFollowExecutor) Wait() bool {
+	if r.tick != nil {
+		<-r.tick.C
+	}
+	return true
+}
+
+func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opts cliOptions, ops ...any) int {
+	var executor followExecutor
+	for _, op := range ops {
+		switch op := op.(type) {
+		case followExecutor:
+			executor = op
+		}
+	}
+
+	if executor == nil {
+		if opts.followTick <= 0 {
+			opts.followTick = time.Second
+		}
+		realExec := &realFollowExecutor{
+			tick: time.NewTicker(opts.followTick),
+		}
+		defer realExec.tick.Stop()
+		executor = realExec
+	}
+
 	last := map[string]string{}
-	tick := time.NewTicker(opts.followTick)
-	defer tick.Stop()
 	for {
 		for _, instance := range instances {
-			p, err := newPlayer(instance, playerctl.SourceDBusSession)
-			if err != nil {
-				continue
-			}
-			line, err := queryOutput(cmd, p, opts)
-			p.Close()
+			line, err := executor.Query(cmd, instance, opts)
 			if err != nil {
 				continue
 			}
@@ -339,8 +373,11 @@ func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opt
 				last[instance] = line
 			}
 		}
-		<-tick.C
+		if !executor.Wait() {
+			break
+		}
 	}
+	return 0
 }
 
 func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {

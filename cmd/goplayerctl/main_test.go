@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/arran4/go-playerctl/pkg/playerctl"
 )
@@ -126,28 +125,53 @@ func TestRunFlagParsing(t *testing.T) {
 	}
 }
 
-func TestRunFollowBlocksIndefinitely(t *testing.T) {
-	orig := newPlayer
-	defer func() { newPlayer = orig }()
+type fakeFollowExecutor struct {
+	iter  int
+	limit int
+	cmd   string
+	inst  string
+	opts  cliOptions
+	vals  []string
+}
 
-	newPlayer = func(instance string, source playerctl.Source) (*playerctl.Player, error) {
-		// We need to return a fully mocked player to prevent Close() from panicking on a nil channel
-		return playerctl.NewPlayer("dummy", playerctl.SourceNone)
+func (f *fakeFollowExecutor) Query(cmd, instance string, opts cliOptions) (string, error) {
+	f.cmd = cmd
+	f.inst = instance
+	f.opts = opts
+
+	if len(f.vals) > 0 {
+		idx := f.iter % len(f.vals)
+		return f.vals[idx], nil
+	}
+	return "status_ok", nil
+}
+
+func (f *fakeFollowExecutor) Wait() bool {
+	f.iter++
+	return f.iter < f.limit
+}
+
+func TestRunFollowBlocksIndefinitely(t *testing.T) {
+	var out, errOut bytes.Buffer
+	fakeExec := &fakeFollowExecutor{
+		limit: 6, // Go beyond the old 3 limit
+		vals:  []string{"Playing", "Playing", "Paused", "Paused", "Playing"},
 	}
 
-	// Create channels to signal completion
-	done := make(chan int)
+	// This should run 6 iterations and exit cleanly based on Wait() returning false
+	code := run([]string{"--player", "dummy", "--follow", "status"}, &out, &errOut, fakeExec)
 
-	var out, errOut bytes.Buffer
-	go func() {
-		// Run follow, which should block
-		done <- run([]string{"--player", "dummy", "--follow", "--follow-interval", "100ms", "status"}, &out, &errOut)
-	}()
+	if code != 0 {
+		t.Fatalf("expected follow to exit with 0, got %d. stderr: %s", code, errOut.String())
+	}
+	if fakeExec.iter != 6 {
+		t.Fatalf("expected 6 iterations, got %d", fakeExec.iter)
+	}
 
-	select {
-	case <-done:
-		t.Fatalf("expected --follow to block, but it returned early")
-	case <-time.After(500 * time.Millisecond):
-		// This is the expected path: the command is still running
+	outStr := out.String()
+	// Since we deduplicate, we expect "Playing\nPaused\nPlaying\n"
+	expected := "Playing\nPaused\nPlaying\n"
+	if outStr != expected {
+		t.Fatalf("expected output %q, got %q", expected, outStr)
 	}
 }
