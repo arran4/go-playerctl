@@ -124,3 +124,61 @@ func TestRunFlagParsing(t *testing.T) {
 		t.Fatalf("expected connect failure but got code=%d out=%q err=%q", code, out.String(), errOut.String())
 	}
 }
+
+type fakeFollowExecutor struct {
+	iter  int
+	limit int
+	cmd   string
+	inst  string
+	opts  cliOptions
+	vals  []string
+}
+
+func (f *fakeFollowExecutor) Query(cmd, instance string, opts cliOptions) (string, error) {
+	f.cmd = cmd
+	f.inst = instance
+	f.opts = opts
+
+	if len(f.vals) > 0 {
+		idx := f.iter % len(f.vals)
+		return f.vals[idx], nil
+	}
+	return "status_ok", nil
+}
+
+func (f *fakeFollowExecutor) Wait() bool {
+	f.iter++
+	return f.iter < f.limit
+}
+
+func TestRunFollowContinuesPastOldDeadline(t *testing.T) {
+	var out, errOut bytes.Buffer
+	fakeExec := &fakeFollowExecutor{
+		limit: 6, // Go beyond the old 3 limit
+		vals:  []string{"Playing", "Playing", "Paused", "Paused", "Playing"},
+	}
+
+	// This should run 6 iterations and exit cleanly based on Wait() returning false
+	code := run([]string{"--player", "dummy", "--follow", "status"}, &out, &errOut, fakeExec)
+
+	if code != 0 {
+		t.Fatalf("expected follow to exit with 0, got %d. stderr: %s", code, errOut.String())
+	}
+	if fakeExec.iter != 6 {
+		t.Fatalf("expected 6 iterations, got %d", fakeExec.iter)
+	}
+
+	if fakeExec.cmd != "status" {
+		t.Fatalf("expected command to be 'status', got %q", fakeExec.cmd)
+	}
+	if fakeExec.inst != "dummy" {
+		t.Fatalf("expected instance to be 'dummy', got %q", fakeExec.inst)
+	}
+
+	outStr := out.String()
+	// Since we deduplicate, we expect "Playing\nPaused\nPlaying\n"
+	expected := "Playing\nPaused\nPlaying\n"
+	if outStr != expected {
+		t.Fatalf("expected output %q, got %q", expected, outStr)
+	}
+}
