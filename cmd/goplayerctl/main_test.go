@@ -151,7 +151,7 @@ func (f *fakeFollowExecutor) Wait() bool {
 	return f.iter < f.limit
 }
 
-func TestRunFollowBlocksIndefinitely(t *testing.T) {
+func TestRunFollowContinuesPastOldDeadline(t *testing.T) {
 	var out, errOut bytes.Buffer
 	fakeExec := &fakeFollowExecutor{
 		limit: 6, // Go beyond the old 3 limit
@@ -166,6 +166,13 @@ func TestRunFollowBlocksIndefinitely(t *testing.T) {
 	}
 	if fakeExec.iter != 6 {
 		t.Fatalf("expected 6 iterations, got %d", fakeExec.iter)
+	}
+
+	if fakeExec.cmd != "status" {
+		t.Fatalf("expected command to be 'status', got %q", fakeExec.cmd)
+	}
+	if fakeExec.inst != "dummy" {
+		t.Fatalf("expected instance to be 'dummy', got %q", fakeExec.inst)
 	}
 
 	outStr := out.String()
