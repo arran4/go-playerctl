@@ -202,7 +202,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
 		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "dump-json": {}, "rate": {},
 		"playlist": {}, "tracklist": {}, "playing": {}, "format": {}, "album": {}, "artist": {}, "title": {}, "track": {},
-		"version": {},
+		"version": {}, "copy": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -761,6 +761,31 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 		}
 
 		write(line)
+	case "copy":
+		key := "xesam:url"
+		if len(remainingArgs) > 0 {
+			key = remainingArgs[0]
+		}
+		meta, err := p.Metadata()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		var val string
+		if v, ok := meta[key]; ok {
+			if v.Value() != nil {
+				val = fmt.Sprintf("%v", v.Value())
+			}
+		}
+		if val == "" {
+			fmt.Fprintf(stderr, "Error: current media does not expose a %s.\n", key)
+			return 1
+		}
+		if err := copyToClipboard(val); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		write(val)
 	case "status", "metadata":
 		line, err := queryOutput(cmd, p, opts)
 		if err != nil {
