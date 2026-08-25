@@ -1,61 +1,40 @@
 package main
 
 import (
-	"errors"
-	"os/exec"
-	"strings"
+    "context"
+	"golang.design/x/clipboard"
 )
 
-// clipboardExecutor defines how commands are located and executed
-type clipboardExecutor interface {
-	LookPath(file string) (string, error)
-	Run(name string, stdin string, args ...string) error
+type clipboardWriter interface {
+	Init() error
+	WriteText(text string) error
 }
 
-// realClipboardExecutor is the default implementation that talks to the OS
-type realClipboardExecutor struct{}
-
-func (e *realClipboardExecutor) LookPath(file string) (string, error) {
-	return exec.LookPath(file)
+type nativeClipboardWriter struct{
+    initialized bool
 }
 
-func (e *realClipboardExecutor) Run(name string, stdin string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdin = strings.NewReader(stdin)
-	return cmd.Run()
+func (w *nativeClipboardWriter) Init() error {
+    if w.initialized {
+        return nil
+    }
+	err := clipboard.Init()
+    if err == nil {
+        w.initialized = true
+    }
+    return err
 }
 
-// defaultClipboardExec is used by default but can be swapped out for tests
-var defaultClipboardExec clipboardExecutor = &realClipboardExecutor{}
+func (w *nativeClipboardWriter) WriteText(text string) error {
+	_, _ = clipboard.Write(context.Background(), clipboard.FmtText, []byte(text))
+	return nil
+}
 
-// copyToClipboard tries various system clipboard utilities to copy the given text.
+var defaultClipboardWriter clipboardWriter = &nativeClipboardWriter{}
+
 func copyToClipboard(text string) error {
-	commands := []struct {
-		name string
-		args []string
-	}{
-		{"wl-copy", []string{}},
-		{"xclip", []string{"-selection", "clipboard"}},
-		{"xsel", []string{"--clipboard", "--input"}},
-		{"pbcopy", []string{}}, // macOS
-		{"clip.exe", []string{}}, // Windows
+	if err := defaultClipboardWriter.Init(); err != nil {
+		return err
 	}
-
-	var lastErr error
-	foundCommand := false
-	for _, cmdConfig := range commands {
-		if _, err := defaultClipboardExec.LookPath(cmdConfig.name); err == nil {
-			foundCommand = true
-			if err := defaultClipboardExec.Run(cmdConfig.name, text, cmdConfig.args...); err != nil {
-				lastErr = err
-				continue
-			}
-			return nil
-		}
-	}
-
-	if !foundCommand {
-		return errors.New("no supported clipboard utility found (wl-copy, xclip, xsel, pbcopy, clip.exe)")
-	}
-	return lastErr
+	return defaultClipboardWriter.WriteText(text)
 }
