@@ -1,3 +1,5 @@
+//go:build !windows && !darwin
+
 package main
 
 import (
@@ -9,7 +11,11 @@ import (
 	"golang.design/x/clipboard"
 )
 
+// runClipboardOwner is the entry point for the internal clipboard daemon.
+// It reads the payload from stdin, initializes the clipboard, writes it,
+// sends "READY" or "ERROR" to the status pipe (fd 3), and then blocks until overwritten.
 func runClipboardOwner() int {
+	// Status pipe is passed as ExtraFiles[0], which is fd 3
 	statusFile := os.NewFile(3, "status_pipe")
 	if statusFile == nil {
 		fmt.Fprintln(os.Stderr, "internal error: status pipe fd 3 not provided")
@@ -40,6 +46,7 @@ func runClipboardOwner() int {
 
 	sendStatus("READY")
 
+	// Detach completely by closing stdio
 	_ = os.Stdin.Close()
 	_ = os.Stdout.Close()
 	_ = os.Stderr.Close()
