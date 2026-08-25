@@ -87,7 +87,12 @@ func printUsageHelp(stdout io.Writer) {
 	}
 }
 
-func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--internal-clipboard-owner" {
+		os.Exit(runClipboardOwner())
+	}
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
 
 func printTemplateHelp(stdout io.Writer) {
 	tmpl, err := template.New("help").Parse(templateHelp)
@@ -225,10 +230,18 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	}
 
 	if cmd == "mock" {
+		if copyFlag {
+			fmt.Fprintln(stderr, "error: --copy is not supported for mock")
+			return 2
+		}
 		return runMock(remaining[1:], stdout, stderr)
 	}
 
 	if cmd == "daemon" {
+		if copyFlag {
+			fmt.Fprintln(stderr, "error: --copy is not supported for daemon")
+			return 2
+		}
 		return runDaemon(remaining[1:], stdout, stderr)
 	}
 
@@ -287,50 +300,59 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	}
 
 	if cmd == "tui" {
-		return runTUI(instances, stdout, stderr, opts)
-	}
-
-	if cmd == "dump" {
-		return runDump(instances, stdout, stderr, opts)
-	}
-
-	if cmd == "url" {
-		if len(playerArg) > 0 || allPlayers {
-			// Explicit player specified or all players requested, no fallback.
-			// Rely on the normal flow.
-		} else {
-			// Smart fallback across players for URL
-			var foundUrl string
-			for _, instance := range instances {
-				p, err := newPlayer(instance, playerctl.SourceDBusSession)
-				if err != nil {
-					continue
-				}
-				meta, err := p.Metadata()
-				p.Close()
-				if err != nil {
-					continue
-				}
-				if v, ok := meta["xesam:url"]; ok && v.Value() != nil {
-					if urlStr, ok := v.Value().(string); ok && urlStr != "" {
-						foundUrl = urlStr
-						// Override instances to only run against the found player
-						instances = []string{instance}
-						break
-					}
-				}
-			}
-			if foundUrl == "" {
-				fmt.Fprintln(stderr, "No players found with a valid media URL")
-				return 1
-			}
+		if opts.copyFlag {
+			fmt.Fprintln(stderr, "error: --copy is not supported for tui")
+			return 2
 		}
+		return runTUI(instances, stdout, stderr, opts)
 	}
 
 	var aggregateOutput strings.Builder
 	var outputWriter io.Writer = stdout
 	if opts.copyFlag {
 		outputWriter = io.MultiWriter(stdout, &aggregateOutput)
+	}
+
+	if cmd == "dump" {
+		code := runDump(instances, outputWriter, stderr, opts)
+		if opts.copyFlag && aggregateOutput.Len() > 0 {
+			if err := copyToClipboard(aggregateOutput.String()); err != nil {
+				fmt.Fprintf(stderr, "go-playerctl: failed to copy output to clipboard: %v\n", err)
+				return 1
+			}
+		}
+		return code
+	}
+
+	if cmd == "url" {
+		var foundUrl string
+		for _, instance := range instances {
+			p, err := newPlayer(instance, playerctl.SourceDBusSession)
+			if err != nil {
+				continue
+			}
+			meta, err := p.Metadata()
+			p.Close()
+			if err != nil {
+				continue
+			}
+			if v, ok := meta["xesam:url"]; ok && v.Value() != nil {
+				if urlStr, ok := v.Value().(string); ok && urlStr != "" {
+					foundUrl = urlStr
+					instances = []string{instance}
+					break
+				}
+			}
+		}
+
+		if foundUrl == "" {
+			if len(playerArg) > 0 {
+				fmt.Fprintln(stderr, "error: current media does not expose a valid media URL")
+			} else {
+				fmt.Fprintln(stderr, "go-playerctl: no MPRIS player exposes xesam:url")
+			}
+			return 1
+		}
 	}
 
 	for _, instance := range instances {
@@ -358,7 +380,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 
 	if opts.copyFlag && aggregateOutput.Len() > 0 {
 		if err := copyToClipboard(aggregateOutput.String()); err != nil {
-			fmt.Fprintf(stderr, "Error copying to clipboard: %v\n", err)
+			fmt.Fprintf(stderr, "go-playerctl: failed to copy output to clipboard: %v\n", err)
 			return 1
 		}
 	}
@@ -828,6 +850,7 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 			return 1
 		}
 		if isUrlCmd && line == "" {
+			// This shouldn't happen because of the loop earlier, but in case it does.
 			fmt.Fprintln(stderr, "error: current media does not expose a valid media URL")
 			return 1
 		}
