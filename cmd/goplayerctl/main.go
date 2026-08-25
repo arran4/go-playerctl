@@ -232,7 +232,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		return runDaemon(remaining[1:], stdout, stderr)
 	}
 
-	instances := selectInstances(playerArg, ignoreArg, allPlayers)
+	instances := selectInstances(playerArg, ignoreArg, allPlayers, cmd == "url")
 	if len(instances) == 0 && cmd != "tui" {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
@@ -328,6 +328,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		// Treat "url" as formatted metadata from here on
 		cmd = "metadata"
 		remaining = []string{"metadata", "xesam:url"}
+		opts.args = []string{"xesam:url"}
 	}
 
 	var aggregateOutput strings.Builder
@@ -437,7 +438,7 @@ func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opt
 	return 0
 }
 
-func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {
+func selectInstances(playerArg, ignoreArg []string, allPlayers bool, keepAllRanked bool) []string {
 	ignore := map[string]struct{}{}
 	for _, arg := range ignoreArg {
 		for _, v := range strings.Split(arg, ",") {
@@ -504,7 +505,7 @@ func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {
 		return weight(infos[i].status) < weight(infos[j].status)
 	})
 
-	if allPlayers {
+	if allPlayers || keepAllRanked {
 		var instances []string
 		for _, info := range infos {
 			instances = append(instances, info.instance)

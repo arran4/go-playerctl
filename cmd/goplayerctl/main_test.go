@@ -79,7 +79,7 @@ func TestSelectInstances(t *testing.T) {
 		return m, nil
 	}
 
-	got := selectInstances([]string{"vlc, spotify"}, []string{"spotify"}, false)
+	got := selectInstances([]string{"vlc, spotify"}, []string{"spotify"}, false, false)
 	if len(got) != 1 || got[0] != "vlc" {
 		t.Fatalf("selectInstances mismatch: %#v", got)
 	}
