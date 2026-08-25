@@ -325,10 +325,6 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 				return 1
 			}
 		}
-		// Treat "url" as formatted metadata from here on
-		cmd = "metadata"
-		remaining = []string{"metadata", "xesam:url"}
-		opts.args = []string{"xesam:url"}
 	}
 
 	var aggregateOutput strings.Builder
@@ -819,10 +815,20 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 		}
 
 		write(line)
-	case "status", "metadata":
-		line, err := queryOutput(cmd, p, opts)
+	case "status", "metadata", "url":
+		isUrlCmd := cmd == "url"
+		queryCmd := cmd
+		if isUrlCmd {
+			queryCmd = "metadata"
+			opts.args = []string{"xesam:url"}
+		}
+		line, err := queryOutput(queryCmd, p, opts)
 		if err != nil {
 			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		if isUrlCmd && line == "" {
+			fmt.Fprintln(stderr, "error: current media does not expose a valid media URL")
 			return 1
 		}
 		write(line)
