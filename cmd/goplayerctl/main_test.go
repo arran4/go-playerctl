@@ -105,6 +105,13 @@ func TestRunFollowValidation(t *testing.T) {
 	if code != 2 || !strings.Contains(errOut.String(), "only supported") {
 		t.Fatalf("follow validation failed code=%d err=%q", code, errOut.String())
 	}
+
+	out.Reset()
+	errOut.Reset()
+	code = run([]string{"--player", "vlc", "--follow", "--copy", "status"}, &out, &errOut)
+	if code != 2 || !strings.Contains(errOut.String(), "cannot be used together") {
+		t.Fatalf("follow+copy validation failed code=%d err=%q", code, errOut.String())
+	}
 }
 
 func TestRunFlagParsing(t *testing.T) {

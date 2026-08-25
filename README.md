@@ -54,7 +54,7 @@ goplayerctl [flags] <command>
 - `artist`
 - `title`
 - `track`
-- `copy [key]`
+- `url`
 - `loop [None|Track|Playlist]`
 - `shuffle [On|Off|Toggle]`
 - `volume [level]`
@@ -90,6 +90,18 @@ goplayerctl --format '{{ range .tracklist }}{{ .title }} by {{ .artist }}{{ "\n"
 
 # print out all available playlists
 goplayerctl --format '{{ range .playlists }}Playlist: {{ .name }}{{ "\n" }}{{ end }}' metadata
+
+# print the current playing media url
+goplayerctl url
+
+# print spotify's media url
+goplayerctl --player spotify url
+
+# copy the media url to the clipboard
+goplayerctl --copy url
+
+# copy a formatted string to the clipboard
+goplayerctl --copy --format '{{.artist}} - {{.title}}' metadata
 ```
 
 ## TUI usage (`goplayerctl tui`)

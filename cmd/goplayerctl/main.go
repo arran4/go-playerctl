@@ -53,6 +53,7 @@ type cliOptions struct {
 	indent     string
 	tuiScheme  string
 	json       bool
+	copyFlag   bool
 	args       []string
 }
 
@@ -132,7 +133,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	fs.Var(&ignoreArg, "ignore-player", "comma-separated player instances to ignore")
 	fs.Var(&ignoreArg, "i", "comma-separated player instances to ignore")
 
-	var allPlayers, listAll, follow, versionFlag, templateHelpFlag, jsonFlag bool
+	var allPlayers, listAll, follow, versionFlag, templateHelpFlag, jsonFlag, copyFlag bool
 	fs.BoolVar(&allPlayers, "all-players", false, "target all available players")
 	fs.BoolVar(&allPlayers, "a", false, "target all available players")
 	fs.BoolVar(&listAll, "list-all", false, "list all available players")
@@ -143,6 +144,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	fs.BoolVar(&follow, "follow", false, "follow output updates")
 	fs.BoolVar(&follow, "F", false, "follow output updates")
 	fs.BoolVar(&jsonFlag, "json", false, "output in JSON format")
+	fs.BoolVar(&copyFlag, "copy", false, "copy stdout output to clipboard")
 
 	var format string
 	fs.StringVar(&format, "format", "", "output format template")
@@ -202,7 +204,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
 		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "dump-json": {}, "rate": {},
 		"playlist": {}, "tracklist": {}, "playing": {}, "format": {}, "album": {}, "artist": {}, "title": {}, "track": {},
-		"version": {}, "copy": {},
+		"version": {}, "url": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -212,6 +214,10 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	if cmd == "version" {
 		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
 		return 0
+	}
+	if follow && copyFlag {
+		fmt.Fprintln(stderr, "error: --follow and --copy cannot be used together")
+		return 2
 	}
 	if follow && cmd != "status" && cmd != "metadata" && cmd != "format" && cmd != "album" && cmd != "artist" && cmd != "title" && cmd != "track" {
 		fmt.Fprintln(stderr, "--follow is only supported for status, metadata, format, album, artist, title, and track")
@@ -264,6 +270,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		indent:     *indent,
 		tuiScheme:  *tuiScheme,
 		json:       jsonFlag,
+		copyFlag:   copyFlag,
 	}
 
 	if len(remaining) > 1 {
@@ -287,6 +294,48 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		return runDump(instances, stdout, stderr, opts)
 	}
 
+	if cmd == "url" {
+		if len(playerArg) > 0 || allPlayers {
+			// Explicit player specified or all players requested, no fallback.
+			// Rely on the normal flow.
+		} else {
+			// Smart fallback across players for URL
+			var foundUrl string
+			for _, instance := range instances {
+				p, err := newPlayer(instance, playerctl.SourceDBusSession)
+				if err != nil {
+					continue
+				}
+				meta, err := p.Metadata()
+				p.Close()
+				if err != nil {
+					continue
+				}
+				if v, ok := meta["xesam:url"]; ok && v.Value() != nil {
+					if urlStr, ok := v.Value().(string); ok && urlStr != "" {
+						foundUrl = urlStr
+						// Override instances to only run against the found player
+						instances = []string{instance}
+						break
+					}
+				}
+			}
+			if foundUrl == "" {
+				fmt.Fprintln(stderr, "No players found with a valid media URL")
+				return 1
+			}
+		}
+		// Treat "url" as formatted metadata from here on
+		cmd = "metadata"
+		remaining = []string{"metadata", "xesam:url"}
+	}
+
+	var aggregateOutput strings.Builder
+	var outputWriter io.Writer = stdout
+	if opts.copyFlag {
+		outputWriter = io.MultiWriter(stdout, &aggregateOutput)
+	}
+
 	for _, instance := range instances {
 		p, err := newPlayer(instance, playerctl.SourceDBusSession)
 		if err != nil {
@@ -301,7 +350,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 			cmdArgs = remaining[1:]
 		}
 
-		if code := runCommand(cmd, p, stdout, stderr, opts, cmdArgs); code != 0 {
+		if code := runCommand(cmd, p, outputWriter, stderr, opts, cmdArgs); code != 0 {
 			p.Close()
 			if !allPlayers {
 				return code
@@ -309,6 +358,14 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		}
 		p.Close()
 	}
+
+	if opts.copyFlag && aggregateOutput.Len() > 0 {
+		if err := copyToClipboard(aggregateOutput.String()); err != nil {
+			fmt.Fprintf(stderr, "Error copying to clipboard: %v\n", err)
+			return 1
+		}
+	}
+
 	return 0
 }
 
@@ -761,31 +818,6 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 		}
 
 		write(line)
-	case "copy":
-		key := "xesam:url"
-		if len(remainingArgs) > 0 {
-			key = remainingArgs[0]
-		}
-		meta, err := p.Metadata()
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 1
-		}
-		var val string
-		if v, ok := meta[key]; ok {
-			if v.Value() != nil {
-				val = fmt.Sprintf("%v", v.Value())
-			}
-		}
-		if val == "" {
-			fmt.Fprintf(stderr, "Error: current media does not expose a %s.\n", key)
-			return 1
-		}
-		if err := copyToClipboard(val); err != nil {
-			fmt.Fprintln(stderr, err)
-			return 1
-		}
-		write(val)
 	case "status", "metadata":
 		line, err := queryOutput(cmd, p, opts)
 		if err != nil {

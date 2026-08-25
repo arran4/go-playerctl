@@ -24,7 +24,7 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 - `metadata`
 - `tui`
 - `daemon`
-- `copy [key]`
+- `url`
 - `loop [None|Track|Playlist]`
 - `shuffle [On|Off|Toggle]`
 - `volume [level]`
@@ -41,6 +41,7 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 - `-f, --format`: Go template format string.
 - `--template-help`: print detailed help for format templates and exit.
 - `-F, --follow`: keep polling and print value changes.
+- `--copy`: copy the command's rendered stdout to the system clipboard.
 - `--follow-interval`: polling interval (default: 1s).
 - `--tui-scheme`: TUI control scheme (arrow, vim, winamp, emacs).
 - `-v, --version`: print version string.
@@ -62,6 +63,18 @@ goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - 
 
 # follow status changes
 goplayerctl --player spotify --follow status
+
+# print the current playing media url
+goplayerctl url
+
+# print spotify's media url
+goplayerctl --player spotify url
+
+# copy the media url to the clipboard
+goplayerctl --copy url
+
+# copy a formatted string to the clipboard
+goplayerctl --copy --format '{{.artist}} - {{.title}}' metadata
 ```
 
 # FORMAT STRINGS
