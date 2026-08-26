@@ -32,6 +32,12 @@ var usageHelp string
 var (
 	newPlayer       = playerctl.NewPlayer
 	newPlayerManger = playerctl.NewPlayerManager
+	selectPlayers   = selectInstances
+	renderCommand   = renderPlayerCommand
+	renderDump      = runDump
+	lookupURL       = playerURL
+	discoverPlayers = discoveredPlayerInstances
+	lookupStatus    = playerStatus
 )
 
 type stringSlice []string
@@ -53,6 +59,7 @@ type cliOptions struct {
 	indent     string
 	tuiScheme  string
 	json       bool
+	copyFlag   bool
 	args       []string
 }
 
@@ -86,7 +93,12 @@ func printUsageHelp(stdout io.Writer) {
 	}
 }
 
-func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
+func main() {
+	if handled, code := handleInternalClipboardOwner(os.Args[1:]); handled {
+		os.Exit(code)
+	}
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
 
 func printTemplateHelp(stdout io.Writer) {
 	tmpl, err := template.New("help").Parse(templateHelp)
@@ -132,7 +144,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	fs.Var(&ignoreArg, "ignore-player", "comma-separated player instances to ignore")
 	fs.Var(&ignoreArg, "i", "comma-separated player instances to ignore")
 
-	var allPlayers, listAll, follow, versionFlag, templateHelpFlag, jsonFlag bool
+	var allPlayers, listAll, follow, versionFlag, templateHelpFlag, jsonFlag, copyFlag bool
 	fs.BoolVar(&allPlayers, "all-players", false, "target all available players")
 	fs.BoolVar(&allPlayers, "a", false, "target all available players")
 	fs.BoolVar(&listAll, "list-all", false, "list all available players")
@@ -143,6 +155,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	fs.BoolVar(&follow, "follow", false, "follow output updates")
 	fs.BoolVar(&follow, "F", false, "follow output updates")
 	fs.BoolVar(&jsonFlag, "json", false, "output in JSON format")
+	fs.BoolVar(&copyFlag, "copy", false, "copy stdout output to clipboard")
 
 	var format string
 	fs.StringVar(&format, "format", "", "output format template")
@@ -202,7 +215,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		"next": {}, "previous": {}, "status": {}, "metadata": {}, "tui": {}, "daemon": {}, "mock": {},
 		"loop": {}, "shuffle": {}, "volume": {}, "position": {}, "open": {}, "dump": {}, "dump-json": {}, "rate": {},
 		"playlist": {}, "tracklist": {}, "playing": {}, "format": {}, "album": {}, "artist": {}, "title": {}, "track": {},
-		"version": {},
+		"version": {}, "url": {},
 	}
 	if _, ok := supported[cmd]; !ok {
 		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
@@ -213,26 +226,39 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
 		return 0
 	}
+	if follow && copyFlag {
+		fmt.Fprintln(stderr, "error: --follow and --copy cannot be used together")
+		return 2
+	}
 	if follow && cmd != "status" && cmd != "metadata" && cmd != "format" && cmd != "album" && cmd != "artist" && cmd != "title" && cmd != "track" {
 		fmt.Fprintln(stderr, "--follow is only supported for status, metadata, format, album, artist, title, and track")
 		return 2
 	}
 
 	if cmd == "mock" {
+		if copyFlag {
+			fmt.Fprintln(stderr, "error: --copy is not supported for mock")
+			return 2
+		}
 		return runMock(remaining[1:], stdout, stderr)
 	}
 
 	if cmd == "daemon" {
+		if copyFlag {
+			fmt.Fprintln(stderr, "error: --copy is not supported for daemon")
+			return 2
+		}
 		return runDaemon(remaining[1:], stdout, stderr)
 	}
 
-	instances := selectInstances(playerArg, ignoreArg, allPlayers)
+	instances := selectPlayers(playerArg, ignoreArg, allPlayers, cmd == "url")
 	if len(instances) == 0 && cmd != "tui" {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
 	}
 
-	if cmd == "format" {
+	switch cmd {
+	case "format":
 		if len(remaining) > 1 {
 			format = remaining[1]
 			remaining = append([]string{remaining[0]}, remaining[2:]...)
@@ -241,16 +267,16 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 			return 2
 		}
 		cmd = "metadata"
-	} else if cmd == "album" {
+	case "album":
 		format = "{{.album}}"
 		cmd = "metadata"
-	} else if cmd == "artist" {
+	case "artist":
 		format = "{{.artist}}"
 		cmd = "metadata"
-	} else if cmd == "title" {
+	case "title":
 		format = "{{.title}}"
 		cmd = "metadata"
-	} else if cmd == "track" {
+	case "track":
 		// For track number, map to xesam:trackNumber which is what playerctl expects.
 		format = `{{ index . "xesam:trackNumber" }}`
 		cmd = "metadata"
@@ -264,6 +290,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		indent:     *indent,
 		tuiScheme:  *tuiScheme,
 		json:       jsonFlag,
+		copyFlag:   copyFlag,
 	}
 
 	if len(remaining) > 1 {
@@ -280,36 +307,120 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 	}
 
 	if cmd == "tui" {
+		if opts.copyFlag {
+			fmt.Fprintln(stderr, "error: --copy is not supported for tui")
+			return 2
+		}
 		return runTUI(instances, stdout, stderr, opts)
 	}
 
-	if cmd == "dump" {
-		return runDump(instances, stdout, stderr, opts)
+	var rendered strings.Builder
+	code := 0
+	switch cmd {
+	case "dump":
+		code = renderDump(instances, &rendered, stderr, opts)
+	case "url":
+		code = renderURLs(instances, &rendered, stderr, allPlayers, len(playerArg) > 0)
+	default:
+		cmdArgs := remaining[1:]
+		for _, instance := range instances {
+			commandCode := renderCommand(cmd, instance, &rendered, stderr, opts, cmdArgs)
+			if commandCode != 0 {
+				code = commandCode
+				if !allPlayers {
+					break
+				}
+			}
+		}
 	}
 
+	_, _ = io.WriteString(stdout, rendered.String())
+	if code != 0 {
+		return code
+	}
+	if opts.copyFlag {
+		if err := copyToClipboard(rendered.String()); err != nil {
+			fmt.Fprintf(stderr, "go-playerctl: failed to copy output to clipboard: %v\n", err)
+			return 1
+		}
+	}
+
+	return 0
+}
+
+func renderPlayerCommand(cmd, instance string, stdout, stderr io.Writer, opts cliOptions, args []string) int {
+	p, err := newPlayer(instance, playerctl.SourceDBusSession)
+	if err != nil {
+		fmt.Fprintf(stderr, "failed to connect player %q: %v\n", instance, err)
+		return 1
+	}
+	defer p.Close()
+	return runCommand(cmd, p, stdout, stderr, opts, args)
+}
+
+func playerURL(instance string) (string, error) {
+	p, err := newPlayer(instance, playerctl.SourceDBusSession)
+	if err != nil {
+		return "", err
+	}
+	defer p.Close()
+	meta, err := p.Metadata()
+	if err != nil {
+		return "", err
+	}
+	variant, ok := meta["xesam:url"]
+	if !ok || variant.Value() == nil {
+		return "", nil
+	}
+	url, _ := variant.Value().(string)
+	return url, nil
+}
+
+func renderURLs(instances []string, stdout, stderr io.Writer, allPlayers, explicit bool) int {
+	found := false
+	type lookupFailure struct {
+		instance string
+		err      error
+	}
+	var failures []lookupFailure
 	for _, instance := range instances {
-		p, err := newPlayer(instance, playerctl.SourceDBusSession)
+		url, err := lookupURL(instance)
 		if err != nil {
-			fmt.Fprintf(stderr, "failed to connect player %q: %v\n", instance, err)
-			if !allPlayers {
-				return 1
+			failures = append(failures, lookupFailure{instance: instance, err: err})
+			if allPlayers {
+				fmt.Fprintf(stderr, "failed to query URL for player %q: %v\n", instance, err)
 			}
 			continue
 		}
-		var cmdArgs []string
-		if len(remaining) > 1 {
-			cmdArgs = remaining[1:]
-		}
-
-		if code := runCommand(cmd, p, stdout, stderr, opts, cmdArgs); code != 0 {
-			p.Close()
-			if !allPlayers {
-				return code
+		if url == "" {
+			if allPlayers {
+				fmt.Fprintf(stderr, "player %q does not expose xesam:url\n", instance)
 			}
+			continue
 		}
-		p.Close()
+		found = true
+		if allPlayers {
+			fmt.Fprintf(stdout, "%s %s\n", instance, url)
+			continue
+		}
+		fmt.Fprintln(stdout, url)
+		return 0
 	}
-	return 0
+	if found {
+		return 0
+	}
+	if !allPlayers && len(failures) > 0 {
+		for _, failure := range failures {
+			fmt.Fprintf(stderr, "failed to query URL for player %q: %v\n", failure.instance, failure.err)
+		}
+		return 1
+	}
+	if explicit {
+		fmt.Fprintln(stderr, "error: selected player(s) do not expose xesam:url")
+	} else {
+		fmt.Fprintln(stderr, "go-playerctl: no MPRIS player exposes xesam:url")
+	}
+	return 1
 }
 
 type followExecutor interface {
@@ -380,10 +491,10 @@ func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opt
 	return 0
 }
 
-func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {
+func selectInstances(playerArg, ignoreArg []string, allPlayers bool, keepAllRanked bool) []string {
 	ignore := map[string]struct{}{}
 	for _, arg := range ignoreArg {
-		for _, v := range strings.Split(arg, ",") {
+		for v := range strings.SplitSeq(arg, ",") {
 			v = strings.TrimSpace(v)
 			if v != "" {
 				ignore[v] = struct{}{}
@@ -394,7 +505,7 @@ func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {
 	if len(playerArg) > 0 {
 		var instances []string
 		for _, arg := range playerArg {
-			for _, v := range strings.Split(arg, ",") {
+			for v := range strings.SplitSeq(arg, ",") {
 				v = strings.TrimSpace(v)
 				if v == "" {
 					continue
@@ -408,30 +519,25 @@ func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {
 		return instances
 	}
 
-	manager, err := newPlayerManger(playerctl.SourceNone)
-	if err != nil {
-		return nil
-	}
-
 	type playerInfo struct {
 		instance string
 		status   playerctl.PlaybackStatus
 	}
 	var infos []playerInfo
 
-	for _, n := range manager.PlayerNames() {
-		if _, skip := ignore[n.Instance]; skip {
+	instances, err := discoverPlayers()
+	if err != nil {
+		return nil
+	}
+	for _, instance := range instances {
+		if _, skip := ignore[instance]; skip {
 			continue
 		}
-		p, err := newPlayer(n.Instance, playerctl.SourceDBusSession)
 		status := playerctl.PlaybackStatusStopped
-		if err == nil {
-			if s, err := p.PlaybackStatus(); err == nil {
-				status = s
-			}
-			p.Close()
+		if s, err := lookupStatus(instance); err == nil {
+			status = s
 		}
-		infos = append(infos, playerInfo{instance: n.Instance, status: status})
+		infos = append(infos, playerInfo{instance: instance, status: status})
 	}
 
 	sort.SliceStable(infos, func(i, j int) bool {
@@ -447,7 +553,7 @@ func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {
 		return weight(infos[i].status) < weight(infos[j].status)
 	})
 
-	if allPlayers {
+	if allPlayers || keepAllRanked {
 		var instances []string
 		for _, info := range infos {
 			instances = append(instances, info.instance)
@@ -460,6 +566,27 @@ func selectInstances(playerArg, ignoreArg []string, allPlayers bool) []string {
 	}
 
 	return nil
+}
+
+func discoveredPlayerInstances() ([]string, error) {
+	manager, err := newPlayerManger(playerctl.SourceNone)
+	if err != nil {
+		return nil, err
+	}
+	instances := make([]string, 0, len(manager.PlayerNames()))
+	for _, name := range manager.PlayerNames() {
+		instances = append(instances, name.Instance)
+	}
+	return instances, nil
+}
+
+func playerStatus(instance string) (playerctl.PlaybackStatus, error) {
+	p, err := newPlayer(instance, playerctl.SourceDBusSession)
+	if err != nil {
+		return playerctl.PlaybackStatusStopped, err
+	}
+	defer p.Close()
+	return p.PlaybackStatus()
 }
 
 func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, error) {
@@ -797,18 +924,19 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 		if len(remainingArgs) > 0 {
 			arg := strings.ToLower(remainingArgs[0])
 			var enable bool
-			if arg == "on" || arg == "true" || arg == "1" {
+			switch arg {
+			case "on", "true", "1":
 				enable = true
-			} else if arg == "off" || arg == "false" || arg == "0" {
+			case "off", "false", "0":
 				enable = false
-			} else if arg == "toggle" {
+			case "toggle":
 				current, err := p.Shuffle()
 				if err != nil {
 					fmt.Fprintln(stderr, err)
 					return 1
 				}
 				enable = !current
-			} else {
+			default:
 				fmt.Fprintln(stderr, "invalid shuffle status")
 				return 1
 			}

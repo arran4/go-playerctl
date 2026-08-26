@@ -79,7 +79,7 @@ func TestSelectInstances(t *testing.T) {
 		return m, nil
 	}
 
-	got := selectInstances([]string{"vlc, spotify"}, []string{"spotify"}, false)
+	got := selectInstances([]string{"vlc, spotify"}, []string{"spotify"}, false, false)
 	if len(got) != 1 || got[0] != "vlc" {
 		t.Fatalf("selectInstances mismatch: %#v", got)
 	}
@@ -104,6 +104,13 @@ func TestRunFollowValidation(t *testing.T) {
 	code := run([]string{"--player", "vlc", "--follow", "play"}, &out, &errOut)
 	if code != 2 || !strings.Contains(errOut.String(), "only supported") {
 		t.Fatalf("follow validation failed code=%d err=%q", code, errOut.String())
+	}
+
+	out.Reset()
+	errOut.Reset()
+	code = run([]string{"--player", "vlc", "--follow", "--copy", "status"}, &out, &errOut)
+	if code != 2 || !strings.Contains(errOut.String(), "cannot be used together") {
+		t.Fatalf("follow+copy validation failed code=%d err=%q", code, errOut.String())
 	}
 }
 

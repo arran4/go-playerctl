@@ -12,8 +12,23 @@ _goplayerctl_completions() {
 		previous
 		position
 		volume
+		rate
 		status
 		metadata
+		format
+		album
+		artist
+		title
+		track
+		url
+		playing
+		playlist
+		tracklist
+		dump
+		dump-json
+		tui
+		daemon
+		mock
 		open
 		loop
 		shuffle
@@ -24,6 +39,10 @@ _goplayerctl_completions() {
 		-i --ignore-player=
 		-f --format
 		-F --follow
+		--copy
+		--follow-interval=
+		--indent=
+		--json
 		--tui-scheme=
 		-l --list-all
 		-v --version"
@@ -53,7 +72,7 @@ _goplayerctl_completions() {
 			compopt -o default
 			COMPREPLY=()
 			;;
-		position|volume|metadata)
+		position|volume|rate|metadata|format)
 			COMPREPLY=()
 			return 0
 			;;

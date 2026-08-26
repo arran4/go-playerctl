@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"maps"
 	"regexp"
 	"strings"
 	"text/template"
@@ -156,9 +157,7 @@ func (f *Formatter) Expand(context map[string]any) (string, error) {
 	}
 
 	newContext := make(map[string]any, len(context))
-	for k, v := range context {
-		newContext[k] = v
-	}
+	maps.Copy(newContext, context)
 
 	submaps := make(map[string]map[string]any)
 	for key, val := range context {

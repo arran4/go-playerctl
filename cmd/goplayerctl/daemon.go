@@ -36,7 +36,7 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if versionFlag {
-		fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
+		_, _ = fmt.Fprintf(stdout, "goplayerctl %s (commit: %s, date: %s)\n", version, commit, date)
 		return 0
 	}
 
@@ -44,22 +44,22 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 	defer stop()
 	daemon, err := newDaemon(*interval)
 	if err != nil {
-		fmt.Fprintf(stderr, "daemon init failed: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "daemon init failed: %v\n", err)
 		return 1
 	}
 	if *once {
 		if err := daemon.refreshAndPrint(stdout); err != nil {
-			fmt.Fprintln(stderr, err)
+			_, _ = fmt.Fprintln(stderr, err)
 			return 1
 		}
 		return 0
 	}
 	if err := daemon.exportService(); err != nil {
-		fmt.Fprintf(stderr, "dbus export failed: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "dbus export failed: %v\n", err)
 		return 1
 	}
 	if err := daemon.run(ctx, stdout); err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	return 0
@@ -113,7 +113,7 @@ func (d *daemon) refreshAndPrint(w io.Writer) error {
 	names := make([]string, 0, len(playerNames))
 	for _, n := range playerNames {
 		names = append(names, n.Instance)
-		fmt.Fprintln(w, n.Instance)
+		_, _ = fmt.Fprintln(w, n.Instance)
 	}
 	d.mu.Lock()
 	d.players = names

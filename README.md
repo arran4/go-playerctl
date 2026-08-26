@@ -36,6 +36,7 @@ goplayerctl [flags] <command>
 - `-l, --list-all` print discovered player instances
 - `-f, --format` output format using Go template syntax
 - `-F, --follow` poll and print changes for query commands
+- `--copy` copy the final rendered output while still printing it to stdout
 - `--follow-interval` polling period for `--follow`
 - `--tui-scheme` TUI control scheme (arrow, vim, winamp, emacs)
 - `--version` print CLI version string
@@ -54,6 +55,7 @@ goplayerctl [flags] <command>
 - `artist`
 - `title`
 - `track`
+- `url`
 - `loop [None|Track|Playlist]`
 - `shuffle [On|Off|Toggle]`
 - `volume [level]`
@@ -89,7 +91,32 @@ goplayerctl --format '{{ range .tracklist }}{{ .title }} by {{ .artist }}{{ "\n"
 
 # print out all available playlists
 goplayerctl --format '{{ range .playlists }}Playlist: {{ .name }}{{ "\n" }}{{ end }}' metadata
+
+# print the current playing media url
+goplayerctl url
+
+# print spotify's media url
+goplayerctl --player spotify url
+
+# copy the media url to the clipboard
+goplayerctl --copy url
+
+# copy a formatted string to the clipboard
+goplayerctl --copy --format '{{.artist}} - {{.title}}' metadata
 ```
+
+`url` queries `xesam:url` and accepts any non-empty URI, including `https:`,
+`spotify:`, and `file:` URIs. Without `--player`, candidates are ranked Playing,
+Paused, then Stopped, and players without a URL are skipped. An explicit
+comma-separated player list is searched only in the supplied order.
+`--all-players url` retains all-player output and prefixes each result with its
+player instance. As with other all-player commands, an unavailable player is
+diagnosed while successful player results keep the overall command successful.
+
+`--copy` uses the native system clipboard and copies the complete final output
+once per command. It can be combined with finite output commands such as
+`metadata`, `title`, `status`, `dump`, and `dump-json`; it cannot be combined
+with `--follow`, `tui`, `daemon`, or `mock`.
 
 ## TUI usage (`goplayerctl tui`)
 

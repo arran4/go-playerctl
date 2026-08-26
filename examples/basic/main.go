@@ -33,11 +33,11 @@ func main() {
 	// Initial check for Lana Del Rey
 	artist, err := player.GetArtist()
 	if err == nil && artist == "Lana Del Rey" {
-		player.Next()
+		_ = player.Next()
 	}
 
 	// Start playing some music
-	player.Play()
+	_ = player.Play()
 
 	var lastArtist, lastTitle string
 	var lastStatus playerctl.PlaybackStatus
@@ -70,7 +70,8 @@ func main() {
 		// Check playback status
 		status, err := player.PlaybackStatus()
 		if err == nil && status != lastStatus {
-			if status == playerctl.PlaybackStatusPlaying {
+			switch status {
+			case playerctl.PlaybackStatusPlaying:
 				vol, _ := player.Volume()
 				if vol != lastVolume {
 					fmt.Printf("Playing at volume %v\n", vol)
@@ -78,7 +79,7 @@ func main() {
 				} else {
 					fmt.Println("Playing")
 				}
-			} else if status == playerctl.PlaybackStatusPaused {
+			case playerctl.PlaybackStatusPaused:
 				title, _ := player.GetTitle()
 				fmt.Printf("Paused the song: %s\n", title)
 			}

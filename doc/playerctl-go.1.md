@@ -6,7 +6,7 @@ playerctl-go - control MPRIS media players from the Go port CLI
 
 # SYNOPSIS
 
-`goplayerctl [-v, --version] [-l, --list-all] [-a, --all-players] [-p, --player NAMES] [-i, --ignore-player NAMES] [-f, --format TEMPLATE] [-F, --follow] [--follow-interval DURATION] COMMAND`
+`goplayerctl [-v, --version] [-l, --list-all] [-a, --all-players] [-p, --player NAMES] [-i, --ignore-player NAMES] [-f, --format TEMPLATE] [-F, --follow] [--copy] [--follow-interval DURATION] COMMAND`
 
 # DESCRIPTION
 
@@ -24,6 +24,7 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 - `metadata`
 - `tui`
 - `daemon`
+- `url`
 - `loop [None|Track|Playlist]`
 - `shuffle [On|Off|Toggle]`
 - `volume [level]`
@@ -40,6 +41,7 @@ The Go port of `playerctl` controls media players implementing the MPRIS D-Bus i
 - `-f, --format`: Go template format string.
 - `--template-help`: print detailed help for format templates and exit.
 - `-F, --follow`: keep polling and print value changes.
+- `--copy`: copy the command's rendered stdout to the system clipboard.
 - `--follow-interval`: polling interval (default: 1s).
 - `--tui-scheme`: TUI control scheme (arrow, vim, winamp, emacs).
 - `-v, --version`: print version string.
@@ -61,7 +63,32 @@ goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - 
 
 # follow status changes
 goplayerctl --player spotify --follow status
+
+# print the current playing media url
+goplayerctl url
+
+# print spotify's media url
+goplayerctl --player spotify url
+
+# copy the media url to the clipboard
+goplayerctl --copy url
+
+# copy a formatted string to the clipboard
+goplayerctl --copy --format '{{.artist}} - {{.title}}' metadata
 ```
+
+The `url` command queries `xesam:url` and accepts any non-empty URI. With no
+explicit player, players are ranked Playing, Paused, then Stopped, and the first
+player with a URL is used. An explicit comma-separated player list is searched
+only in the given order. With `--all-players`, every selected URL is rendered
+using the normal all-player prefix. Query failures are diagnosed per player;
+when another selected player succeeds, the all-player command remains
+successful, consistently with other all-player commands.
+
+`--copy` preserves stdout and writes the complete final rendered output to the
+native system clipboard once. It supports finite output commands, including
+`dump` and `dump-json`. It is not supported with `--follow`, `tui`, `daemon`, or
+`mock`.
 
 # FORMAT STRINGS
 

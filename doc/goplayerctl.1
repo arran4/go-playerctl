@@ -6,7 +6,7 @@ playerctl-go \- control MPRIS media players from the Go port CLI
 
 
 .SH SYNOPSIS
-\fBgoplayerctl [--version] [--list-all] [--all-players] [--player NAMES] [--ignore-player NAMES] [--format TEMPLATE] [--follow] [--follow-interval DURATION] COMMAND\fR
+\fBgoplayerctl [-v, --version] [-l, --list-all] [-a, --all-players] [-p, --player NAMES] [-i, --ignore-player NAMES] [-f, --format TEMPLATE] [-F, --follow] [--copy] [--follow-interval DURATION] COMMAND\fR
 
 
 .SH DESCRIPTION
@@ -35,6 +35,8 @@ The Go port of \fBplayerctl\fR controls media players implementing the MPRIS D-B
 .IP \(bu 2
 \fBdaemon\fR
 .IP \(bu 2
+\fBurl\fR
+.IP \(bu 2
 \fBloop [None|Track|Playlist]\fR
 .IP \(bu 2
 \fBshuffle [On|Off|Toggle]\fR
@@ -44,29 +46,33 @@ The Go port of \fBplayerctl\fR controls media players implementing the MPRIS D-B
 \fBposition [offset]\fR
 .IP \(bu 2
 \fBopen <uri>\fR
+.IP \(bu 2
+\fBversion\fR
 
 
 .SH OPTIONS
 .IP \(bu 2
-\fB--player\fR: comma-separated instance list.
+\fB-p, --player\fR: comma-separated instance list.
 .IP \(bu 2
-\fB--ignore-player\fR: comma-separated instance ignore list.
+\fB-i, --ignore-player\fR: comma-separated instance ignore list.
 .IP \(bu 2
-\fB--all-players\fR: target all discovered players.
+\fB-a, --all-players\fR: target all discovered players.
 .IP \(bu 2
-\fB--list-all\fR: print discovered player names.
+\fB-l, --list-all\fR: print discovered player names.
 .IP \(bu 2
-\fB--format\fR: Go template format string.
+\fB-f, --format\fR: Go template format string.
 .IP \(bu 2
 \fB--template-help\fR: print detailed help for format templates and exit.
 .IP \(bu 2
-\fB--follow\fR: keep polling and print value changes.
+\fB-F, --follow\fR: keep polling and print value changes.
+.IP \(bu 2
+\fB--copy\fR: copy the command's rendered stdout to the system clipboard.
 .IP \(bu 2
 \fB--follow-interval\fR: polling interval (default: 1s).
 .IP \(bu 2
 \fB--tui-scheme\fR: TUI control scheme (arrow, vim, winamp, emacs).
 .IP \(bu 2
-\fB--version\fR: print version string.
+\fB-v, --version\fR: print version string.
 
 
 .SH EXAMPLES
@@ -85,7 +91,34 @@ goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - 
 
 # follow status changes
 goplayerctl --player spotify --follow status
+
+# print the current playing media url
+goplayerctl url
+
+# print spotify's media url
+goplayerctl --player spotify url
+
+# copy the media url to the clipboard
+goplayerctl --copy url
+
+# copy a formatted string to the clipboard
+goplayerctl --copy --format '{{.artist}} - {{.title}}' metadata
 .EE
+
+.PP
+The \fBurl\fR command queries \fBxesam:url\fR and accepts any non-empty URI. With no
+explicit player, players are ranked Playing, Paused, then Stopped, and the first
+player with a URL is used. An explicit comma-separated player list is searched
+only in the given order. With \fB--all-players\fR, every selected URL is rendered
+using the normal all-player prefix. Query failures are diagnosed per player;
+when another selected player succeeds, the all-player command remains
+successful, consistently with other all-player commands.
+
+.PP
+\fB--copy\fR preserves stdout and writes the complete final rendered output to the
+native system clipboard once. It supports finite output commands, including
+\fBdump\fR and \fBdump-json\fR\&. It is not supported with \fB--follow\fR, \fBtui\fR, \fBdaemon\fR, or
+\fBmock\fR\&.
 
 
 .SH FORMAT STRINGS

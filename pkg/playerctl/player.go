@@ -232,7 +232,7 @@ func (p *Player) getProperty(name string, out any) error {
 	if err != nil {
 		return err
 	}
-	return dbus.Store([]interface{}{v.Value()}, out)
+	return dbus.Store([]any{v.Value()}, out)
 }
 
 func (p *Player) getInterfaceProperty(iface, name string, out any) error {
@@ -246,7 +246,7 @@ func (p *Player) getInterfaceProperty(iface, name string, out any) error {
 	if err != nil {
 		return err
 	}
-	return dbus.Store([]interface{}{v.Value()}, out)
+	return dbus.Store([]any{v.Value()}, out)
 }
 
 func (p *Player) callInterface(iface, method string, args ...any) error {
@@ -521,7 +521,7 @@ func ExtractArtist(meta map[string]dbus.Variant) string {
 		return strings.Join(artists, ", ")
 	case string:
 		return artists
-	case []interface{}:
+	case []any:
 		parts := make([]string, 0, len(artists))
 		for _, a := range artists {
 			if s, ok := a.(string); ok {

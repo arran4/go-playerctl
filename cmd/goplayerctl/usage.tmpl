@@ -21,6 +21,7 @@ Commands:
   track          Print the track number of the current track.
   open           [URI] Command for the player to open given URI
   playing        Print a 1 liner of what's playing
+  url            Print the xesam:url metadata of the current track.
   loop           [STATUS] Print or set the loop status. Can be "None", "Track", or "Playlist".
   shuffle        [STATUS] Print or set the shuffle status. Can be "On", "Off", or "Toggle".
   playlist       List the playlists available on the player.
@@ -37,6 +38,7 @@ Options:
   -l, --list-all          List the names of running players that can be controlled
   -f, --format=FORMAT     A format string for printing properties and metadata
   -F, --follow            Block and append lines to output when the status changes
+  --copy                  Copy the command's rendered stdout to the system clipboard
   --follow-interval=DURATION Polling interval for follow mode.
   --indent=STRING         Indent string for JSON output (e.g. '  ' or '\t').
   --json                  Output in JSON format (e.g. for dump).
