@@ -99,7 +99,7 @@ func runMock(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "failed to connect to dbus: %v\n", err)
 		return 1
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	reply, err := conn.RequestName("org.mpris.MediaPlayer2.mock", dbus.NameFlagDoNotQueue)
 	if err != nil {

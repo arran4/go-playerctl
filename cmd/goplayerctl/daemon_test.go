@@ -52,13 +52,13 @@ func TestDaemonConcurrentShiftUnshift(t *testing.T) {
 	d := &daemon{players: []string{"a", "b", "c", "d"}, active: "a", lastActivityUnix: 1}
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < 200; i++ {
+		for range 200 {
 			_ = d.Shift()
 		}
 		done <- struct{}{}
 	}()
 	go func() {
-		for i := 0; i < 200; i++ {
+		for range 200 {
 			_ = d.Unshift()
 		}
 		done <- struct{}{}

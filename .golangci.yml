@@ -1,0 +1,11 @@
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        # CLI output errors have historically been best-effort; command/query
+        # failures are reported through the existing exit-code paths.
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln

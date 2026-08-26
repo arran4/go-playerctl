@@ -89,9 +89,7 @@ jobs:
                 run_cleanup=true
               else
                 run_pr_meta_checks=true
-                if [[ "${{ github.event.pull_request.head.repo.full_name || '' }}" != "${{ github.repository }}" ]]; then
-                  run_code_checks=true
-                fi
+                run_code_checks=true
               fi
               ;;
             release)

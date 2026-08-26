@@ -81,7 +81,9 @@ The `url` command queries `xesam:url` and accepts any non-empty URI. With no
 explicit player, players are ranked Playing, Paused, then Stopped, and the first
 player with a URL is used. An explicit comma-separated player list is searched
 only in the given order. With `--all-players`, every selected URL is rendered
-using the normal all-player prefix.
+using the normal all-player prefix. Query failures are diagnosed per player;
+when another selected player succeeds, the all-player command remains
+successful, consistently with other all-player commands.
 
 `--copy` preserves stdout and writes the complete final rendered output to the
 native system clipboard once. It supports finite output commands, including

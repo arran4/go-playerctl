@@ -257,7 +257,8 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		return 2
 	}
 
-	if cmd == "format" {
+	switch cmd {
+	case "format":
 		if len(remaining) > 1 {
 			format = remaining[1]
 			remaining = append([]string{remaining[0]}, remaining[2:]...)
@@ -266,16 +267,16 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 			return 2
 		}
 		cmd = "metadata"
-	} else if cmd == "album" {
+	case "album":
 		format = "{{.album}}"
 		cmd = "metadata"
-	} else if cmd == "artist" {
+	case "artist":
 		format = "{{.artist}}"
 		cmd = "metadata"
-	} else if cmd == "title" {
+	case "title":
 		format = "{{.title}}"
 		cmd = "metadata"
-	} else if cmd == "track" {
+	case "track":
 		// For track number, map to xesam:trackNumber which is what playerctl expects.
 		format = `{{ index . "xesam:trackNumber" }}`
 		cmd = "metadata"
@@ -315,11 +316,12 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 
 	var rendered strings.Builder
 	code := 0
-	if cmd == "dump" {
+	switch cmd {
+	case "dump":
 		code = renderDump(instances, &rendered, stderr, opts)
-	} else if cmd == "url" {
+	case "url":
 		code = renderURLs(instances, &rendered, stderr, allPlayers, len(playerArg) > 0)
-	} else {
+	default:
 		cmdArgs := remaining[1:]
 		for _, instance := range instances {
 			commandCode := renderCommand(cmd, instance, &rendered, stderr, opts, cmdArgs)
@@ -376,15 +378,23 @@ func playerURL(instance string) (string, error) {
 
 func renderURLs(instances []string, stdout, stderr io.Writer, allPlayers, explicit bool) int {
 	found := false
+	type lookupFailure struct {
+		instance string
+		err      error
+	}
+	var failures []lookupFailure
 	for _, instance := range instances {
 		url, err := lookupURL(instance)
-		if err != nil || url == "" {
+		if err != nil {
+			failures = append(failures, lookupFailure{instance: instance, err: err})
 			if allPlayers {
-				if err != nil {
-					fmt.Fprintf(stderr, "failed to query URL for player %q: %v\n", instance, err)
-				} else {
-					fmt.Fprintf(stderr, "player %q does not expose xesam:url\n", instance)
-				}
+				fmt.Fprintf(stderr, "failed to query URL for player %q: %v\n", instance, err)
+			}
+			continue
+		}
+		if url == "" {
+			if allPlayers {
+				fmt.Fprintf(stderr, "player %q does not expose xesam:url\n", instance)
 			}
 			continue
 		}
@@ -398,6 +408,12 @@ func renderURLs(instances []string, stdout, stderr io.Writer, allPlayers, explic
 	}
 	if found {
 		return 0
+	}
+	if !allPlayers && len(failures) > 0 {
+		for _, failure := range failures {
+			fmt.Fprintf(stderr, "failed to query URL for player %q: %v\n", failure.instance, failure.err)
+		}
+		return 1
 	}
 	if explicit {
 		fmt.Fprintln(stderr, "error: selected player(s) do not expose xesam:url")
@@ -478,7 +494,7 @@ func followCommand(cmd string, instances []string, stdout, stderr io.Writer, opt
 func selectInstances(playerArg, ignoreArg []string, allPlayers bool, keepAllRanked bool) []string {
 	ignore := map[string]struct{}{}
 	for _, arg := range ignoreArg {
-		for _, v := range strings.Split(arg, ",") {
+		for v := range strings.SplitSeq(arg, ",") {
 			v = strings.TrimSpace(v)
 			if v != "" {
 				ignore[v] = struct{}{}
@@ -489,7 +505,7 @@ func selectInstances(playerArg, ignoreArg []string, allPlayers bool, keepAllRank
 	if len(playerArg) > 0 {
 		var instances []string
 		for _, arg := range playerArg {
-			for _, v := range strings.Split(arg, ",") {
+			for v := range strings.SplitSeq(arg, ",") {
 				v = strings.TrimSpace(v)
 				if v == "" {
 					continue
@@ -908,18 +924,19 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 		if len(remainingArgs) > 0 {
 			arg := strings.ToLower(remainingArgs[0])
 			var enable bool
-			if arg == "on" || arg == "true" || arg == "1" {
+			switch arg {
+			case "on", "true", "1":
 				enable = true
-			} else if arg == "off" || arg == "false" || arg == "0" {
+			case "off", "false", "0":
 				enable = false
-			} else if arg == "toggle" {
+			case "toggle":
 				current, err := p.Shuffle()
 				if err != nil {
 					fmt.Fprintln(stderr, err)
 					return 1
 				}
 				enable = !current
-			} else {
+			default:
 				fmt.Fprintln(stderr, "invalid shuffle status")
 				return 1
 			}

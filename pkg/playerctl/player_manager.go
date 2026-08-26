@@ -27,7 +27,7 @@ var listNamesOnBus = func(source Source) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	var names []string
 	call := conn.Object(dbusBusName, "/org/freedesktop/DBus").Call("org.freedesktop.DBus.ListNames", 0)

@@ -79,7 +79,7 @@ func TestNilCopierIsAnError(t *testing.T) {
 func TestFailedCommandDoesNotCopy(t *testing.T) {
 	copier := withCLIFakes(t)
 	renderCommand = func(_ string, _ string, _, stderr io.Writer, _ cliOptions, _ []string) int {
-		fmt.Fprintln(stderr, "query failed")
+		_, _ = fmt.Fprintln(stderr, "query failed")
 		return 1
 	}
 	var stdout, stderr bytes.Buffer
@@ -95,7 +95,7 @@ func TestAllPlayersCopyAggregatesOnce(t *testing.T) {
 	copier := withCLIFakes(t)
 	selectPlayers = func(_, _ []string, _, _ bool) []string { return []string{"foo", "bar"} }
 	renderCommand = func(_ string, instance string, stdout, _ io.Writer, opts cliOptions, _ []string) int {
-		fmt.Fprintf(stdout, "%s %s-value\n", instance, instance)
+		_, _ = fmt.Fprintf(stdout, "%s %s-value\n", instance, instance)
 		if !opts.allPlayers {
 			t.Error("allPlayers option was not retained")
 		}
@@ -116,7 +116,7 @@ func TestDumpCommandsUseCopyPipeline(t *testing.T) {
 		t.Run(command, func(t *testing.T) {
 			copier := withCLIFakes(t)
 			renderDump = func(_ []string, stdout, _ io.Writer, opts cliOptions) int {
-				fmt.Fprintf(stdout, "dump json=%v\n", opts.json)
+				_, _ = fmt.Fprintf(stdout, "dump json=%v\n", opts.json)
 				return 0
 			}
 			var stdout, stderr bytes.Buffer
@@ -212,5 +212,108 @@ func TestAllPlayersURLRetainsAggregateAndCopiesOnce(t *testing.T) {
 	want := "foo spotify:x\nbar file:///音楽\n"
 	if stdout.String() != want || !reflect.DeepEqual(copier.calls, []string{want}) {
 		t.Fatalf("stdout=%q calls=%#v", stdout.String(), copier.calls)
+	}
+}
+
+func TestExplicitURLLookupErrorIsReportedAndNotCopied(t *testing.T) {
+	copier := withCLIFakes(t)
+	selectPlayers = func(_, _ []string, _, _ bool) []string { return []string{"spotify"} }
+	lookupURL = func(instance string) (string, error) {
+		return "", errors.New("D-Bus connection lost")
+	}
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--player", "spotify", "--copy", "url"}, &stdout, &stderr)
+	if code == 0 || stdout.Len() != 0 {
+		t.Fatalf("code=%d stdout=%q", code, stdout.String())
+	}
+	if !strings.Contains(stderr.String(), `player "spotify"`) || !strings.Contains(stderr.String(), "D-Bus connection lost") {
+		t.Fatalf("lookup error not preserved: %q", stderr.String())
+	}
+	if strings.Contains(stderr.String(), "do not expose") {
+		t.Fatalf("lookup error misreported as missing URL: %q", stderr.String())
+	}
+	if len(copier.calls) != 0 {
+		t.Fatalf("copier called after lookup failure: %#v", copier.calls)
+	}
+}
+
+func TestExplicitOrderedURLFallsBackAfterError(t *testing.T) {
+	withCLIFakes(t)
+	selectPlayers = func(_, _ []string, _, _ bool) []string { return []string{"foo", "bar"} }
+	var calls []string
+	lookupURL = func(instance string) (string, error) {
+		calls = append(calls, instance)
+		if instance == "foo" {
+			return "", errors.New("foo unavailable")
+		}
+		return "spotify:track:bar", nil
+	}
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--player", "foo,bar", "url"}, &stdout, &stderr)
+	if code != 0 || stdout.String() != "spotify:track:bar\n" || stderr.Len() != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !reflect.DeepEqual(calls, []string{"foo", "bar"}) {
+		t.Fatalf("calls=%#v", calls)
+	}
+}
+
+func TestAutomaticURLFallsBackAfterError(t *testing.T) {
+	withCLIFakes(t)
+	selectPlayers = func(_, _ []string, _, _ bool) []string { return []string{"playing", "paused"} }
+	lookupURL = func(instance string) (string, error) {
+		if instance == "playing" {
+			return "", errors.New("playing query failed")
+		}
+		return "file:///paused.ogg", nil
+	}
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"url"}, &stdout, &stderr)
+	if code != 0 || stdout.String() != "file:///paused.ogg\n" || stderr.Len() != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestAutomaticURLFinalDiagnosticRetainsAllQueryErrors(t *testing.T) {
+	withCLIFakes(t)
+	selectPlayers = func(_, _ []string, _, _ bool) []string { return []string{"playing", "paused", "stopped"} }
+	lookupURL = func(instance string) (string, error) {
+		switch instance {
+		case "playing":
+			return "", errors.New("connection refused")
+		case "stopped":
+			return "", errors.New("metadata timeout")
+		default:
+			return "", nil
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"url"}, &stdout, &stderr)
+	if code == 0 || stdout.Len() != 0 {
+		t.Fatalf("code=%d stdout=%q", code, stdout.String())
+	}
+	for _, want := range []string{"playing", "connection refused", "stopped", "metadata timeout"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("stderr %q does not contain %q", stderr.String(), want)
+		}
+	}
+}
+
+func TestAllPlayersURLQueryErrorWithSuccessReturnsSuccess(t *testing.T) {
+	withCLIFakes(t)
+	selectPlayers = func(_, _ []string, _, _ bool) []string { return []string{"broken", "working"} }
+	lookupURL = func(instance string) (string, error) {
+		if instance == "broken" {
+			return "", errors.New("service disappeared")
+		}
+		return "https://example.test/media", nil
+	}
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--all-players", "url"}, &stdout, &stderr)
+	if code != 0 || stdout.String() != "working https://example.test/media\n" {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), `player "broken"`) || !strings.Contains(stderr.String(), "service disappeared") {
+		t.Fatalf("missing per-player diagnostic: %q", stderr.String())
 	}
 }

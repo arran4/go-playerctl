@@ -110,7 +110,8 @@ goplayerctl --copy --format '{{.artist}} - {{.title}}' metadata
 Paused, then Stopped, and players without a URL are skipped. An explicit
 comma-separated player list is searched only in the supplied order.
 `--all-players url` retains all-player output and prefixes each result with its
-player instance.
+player instance. As with other all-player commands, an unavailable player is
+diagnosed while successful player results keep the overall command successful.
 
 `--copy` uses the native system clipboard and copies the complete final output
 once per command. It can be combined with finite output commands such as

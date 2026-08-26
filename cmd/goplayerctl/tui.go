@@ -414,15 +414,16 @@ func (m *tuiModel) handleAction(action tuiAction) {
 			}
 		}
 	case actionDown:
-		if m.viewMode == "playlist" {
+		switch m.viewMode {
+		case "playlist":
 			if m.listCursor < len(m.playlistItems)-1 {
 				m.listCursor++
 			}
-		} else if m.viewMode == "tracklist" {
+		case "tracklist":
 			if m.listCursor < len(m.trackTitles)-1 {
 				m.listCursor++
 			}
-		} else {
+		default:
 			if m.cursor < len(m.players)-1 {
 				m.cursor++
 				m.updateCurrentPlayerInfo()
@@ -430,7 +431,8 @@ func (m *tuiModel) handleAction(action tuiAction) {
 		}
 	case actionEnter:
 		if len(m.players) > 0 {
-			if m.viewMode == "playlist" {
+			switch m.viewMode {
+			case "playlist":
 				if m.listCursor >= 0 && m.listCursor < len(m.playlistIds) {
 					p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 					if err == nil {
@@ -442,7 +444,7 @@ func (m *tuiModel) handleAction(action tuiAction) {
 						m.updateCurrentPlayerInfo()
 					}
 				}
-			} else if m.viewMode == "tracklist" {
+			case "tracklist":
 				if m.listCursor >= 0 && m.listCursor < len(m.trackIds) {
 					p, err := newPlayer(m.players[m.cursor], playerctl.SourceDBusSession)
 					if err == nil {
@@ -610,7 +612,7 @@ func (m tuiModel) View() string {
 
 	b.WriteString(titleStyle.Render("Go Playerctl TUI"))
 	jumpSecs := jumpSizes[m.jumpSizeIndex] / 1_000_000
-	b.WriteString(fmt.Sprintf(" [Scheme: %s (alt+s)] [Jump: %ds (s)]\n\n", m.controlScheme, jumpSecs))
+	fmt.Fprintf(&b, " [Scheme: %s (alt+s)] [Jump: %ds (s)]\n\n", m.controlScheme, jumpSecs)
 
 	boxWidth := 40
 	if m.width > 0 {
@@ -630,14 +632,8 @@ func (m tuiModel) View() string {
 		var listBuilder strings.Builder
 		fmt.Fprintf(&listBuilder, "%s Playlists:\n\n", playerName)
 		if len(m.playlistItems) > 0 {
-			start := m.listCursor - (m.height/2 - 5)
-			if start < 0 {
-				start = 0
-			}
-			end := start + (m.height - 10)
-			if end > len(m.playlistItems) {
-				end = len(m.playlistItems)
-			}
+			start := max(m.listCursor-(m.height/2-5), 0)
+			end := min(start+(m.height-10), len(m.playlistItems))
 
 			listBuilder.WriteString(lipgloss.NewStyle().Underline(true).Render(fmt.Sprintf("   %-30s | %-20s | %s", "Name", "ID", "Icon")) + "\n")
 			for i := start; i < end; i++ {
@@ -686,14 +682,8 @@ func (m tuiModel) View() string {
 		var listBuilder strings.Builder
 		fmt.Fprintf(&listBuilder, "%s Tracklist:\n\n", playerName)
 		if len(m.trackTitles) > 0 {
-			start := m.listCursor - (m.height/2 - 5)
-			if start < 0 {
-				start = 0
-			}
-			end := start + (m.height - 10)
-			if end > len(m.trackTitles) {
-				end = len(m.trackTitles)
-			}
+			start := max(m.listCursor-(m.height/2-5), 0)
+			end := min(start+(m.height-10), len(m.trackTitles))
 
 			listBuilder.WriteString(lipgloss.NewStyle().Underline(true).Render(fmt.Sprintf("   %-30s | %-30s | %s", "Artist", "Title", "ID")) + "\n")
 			for i := start; i < end; i++ {
@@ -757,10 +747,7 @@ func (m tuiModel) View() string {
 
 		if m.length > 0 && m.status != "Stopped" {
 			metaBox += "\n"
-			progressBarWidth := boxWidth - 4
-			if progressBarWidth < 10 {
-				progressBarWidth = 10
-			}
+			progressBarWidth := max(boxWidth-4, 10)
 			filled := int((float64(m.position) / float64(m.length)) * float64(progressBarWidth))
 			if filled > progressBarWidth {
 				filled = progressBarWidth
@@ -772,10 +759,10 @@ func (m tuiModel) View() string {
 			bar := lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Render(strings.Repeat("█", filled)) +
 				lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", empty))
 
-			posSec := time.Duration(m.position/1000) * time.Millisecond
-			lenSec := time.Duration(m.length/1000) * time.Millisecond
+			positionDuration := time.Duration(m.position/1000) * time.Millisecond
+			lengthDuration := time.Duration(m.length/1000) * time.Millisecond
 
-			metaBox += fmt.Sprintf("%s\n%s / %s", bar, posSec.Round(time.Second), lenSec.Round(time.Second))
+			metaBox += fmt.Sprintf("%s\n%s / %s", bar, positionDuration.Round(time.Second), lengthDuration.Round(time.Second))
 		}
 	} else {
 		metaBox = "No metadata\n"

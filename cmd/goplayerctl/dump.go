@@ -37,7 +37,7 @@ func runDump(instances []string, stdout, stderr io.Writer, opts cliOptions) int 
 	for _, instance := range instances {
 		p, err := newPlayer(instance, playerctl.SourceDBusSession)
 		if err != nil {
-			fmt.Fprintf(stderr, "failed to connect player %q: %v\n", instance, err)
+			_, _ = fmt.Fprintf(stderr, "failed to connect player %q: %v\n", instance, err)
 			if !opts.allPlayers {
 				return 1
 			}
@@ -120,13 +120,13 @@ func runDump(instances []string, stdout, stderr io.Writer, opts cliOptions) int 
 			return 1
 		}
 
-		fmt.Fprintln(stdout, string(b))
+		_, _ = fmt.Fprintln(stdout, string(b))
 		return 0
 	}
 
 	for i, r := range results {
 		if i > 0 {
-			fmt.Fprintln(stdout)
+			_, _ = fmt.Fprintln(stdout)
 			fmt.Fprintln(stdout)
 		}
 
@@ -178,7 +178,7 @@ func runDump(instances []string, stdout, stderr io.Writer, opts cliOptions) int 
 				valStr := fmt.Sprintf("%v", v)
 				if slice, ok := v.([]string); ok {
 					valStr = strings.Join(slice, ", ")
-				} else if arr, ok := v.([]interface{}); ok {
+				} else if arr, ok := v.([]any); ok {
 					var strArr []string
 					for _, item := range arr {
 						strArr = append(strArr, fmt.Sprintf("%v", item))
