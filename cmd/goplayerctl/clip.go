@@ -4,8 +4,11 @@ type clipboardCopier interface {
 	Copy(text string) error
 }
 
-var defaultClipboardCopier clipboardCopier = &nativeClipboardCopier{}
+var defaultClipboardCopier clipboardCopier
 
 func copyToClipboard(text string) error {
-	return defaultClipboardCopier.Copy(text)
+	if defaultClipboardCopier != nil {
+		return defaultClipboardCopier.Copy(text)
+	}
+	return nil
 }

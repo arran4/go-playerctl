@@ -89,7 +89,7 @@ func printUsageHelp(stdout io.Writer) {
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--internal-clipboard-owner" {
-		os.Exit(runClipboardOwner())
+		os.Exit(handleInternalClipboardOwner())
 	}
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -339,7 +339,9 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 			if v, ok := meta["xesam:url"]; ok && v.Value() != nil {
 				if urlStr, ok := v.Value().(string); ok && urlStr != "" {
 					foundUrl = urlStr
-					instances = []string{instance}
+					if !allPlayers {
+						instances = []string{instance}
+					}
 					break
 				}
 			}
