@@ -45,8 +45,23 @@ _regex_words commands 'goplayerctl command' \
 	'previous:Command the player to skip to the previous track' \
 	'position:Command the player to go or seek to the position' \
 	'volume:Print or set the volume level from 0.0 to 1.0' \
+	'rate:Print or set the playback rate' \
 	'status:Get the play status of the player' \
 	'metadata:Print the metadata information for the current track:$goplayerctl_command_metadata_keys' \
+	'format:Print metadata with a template' \
+	'album:Print the current album' \
+	'artist:Print the current artist' \
+	'title:Print the current title' \
+	'track:Print the current track number' \
+	'url:Print the current media URI' \
+	'playing:Print a one-line now-playing summary' \
+	'playlist:List available playlists' \
+	'tracklist:List available tracks' \
+	'dump:Dump player data in human-readable form' \
+	'dump-json:Dump player data as JSON' \
+	'tui:Start the text user interface' \
+	'daemon:Start the D-Bus daemon' \
+	'mock:Start a mock MPRIS player' \
 	'open:Command the player to open the given URI' \
 	'loop:Print or set the loop status:$playercmd_loop' \
 	'shuffle:Print or set the shuffle status:$playercmd_shuffle' \
@@ -59,6 +74,10 @@ _arguments -S -s\
 	'(-v --version)'{-v,--version}'[Print version information and quit]' \
 	'(-l --list-all)'{-l,--list-all}'[List all available players]' \
 	'(-F, --follow)'{-F,--follow}'[Bock and append the query to output when it changes]' \
+	'(--copy)'--copy'[Copy the final rendered output to the clipboard]' \
+	'(--follow-interval)'--follow-interval='[Polling interval for follow mode]:duration' \
+	'(--indent)'--indent='[Indent string for JSON output]:indent' \
+	'(--json)'--json'[Output JSON where supported]' \
 	'(--tui-scheme)'{--tui-scheme=}'[TUI control scheme]:scheme:(arrow vim winamp emacs)' \
 	'(-f --format)'{-f,--format=}'[Format string for printing properties and metadata]' \
 	'(-i --ignore-player)'{-i,--ignore-player=}'[Comma separated list of players to ignore]:players:_sequence _goplayerctl_players' \

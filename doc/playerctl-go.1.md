@@ -6,7 +6,7 @@ playerctl-go - control MPRIS media players from the Go port CLI
 
 # SYNOPSIS
 
-`goplayerctl [-v, --version] [-l, --list-all] [-a, --all-players] [-p, --player NAMES] [-i, --ignore-player NAMES] [-f, --format TEMPLATE] [-F, --follow] [--follow-interval DURATION] COMMAND`
+`goplayerctl [-v, --version] [-l, --list-all] [-a, --all-players] [-p, --player NAMES] [-i, --ignore-player NAMES] [-f, --format TEMPLATE] [-F, --follow] [--copy] [--follow-interval DURATION] COMMAND`
 
 # DESCRIPTION
 
@@ -76,6 +76,17 @@ goplayerctl --copy url
 # copy a formatted string to the clipboard
 goplayerctl --copy --format '{{.artist}} - {{.title}}' metadata
 ```
+
+The `url` command queries `xesam:url` and accepts any non-empty URI. With no
+explicit player, players are ranked Playing, Paused, then Stopped, and the first
+player with a URL is used. An explicit comma-separated player list is searched
+only in the given order. With `--all-players`, every selected URL is rendered
+using the normal all-player prefix.
+
+`--copy` preserves stdout and writes the complete final rendered output to the
+native system clipboard once. It supports finite output commands, including
+`dump` and `dump-json`. It is not supported with `--follow`, `tui`, `daemon`, or
+`mock`.
 
 # FORMAT STRINGS
 

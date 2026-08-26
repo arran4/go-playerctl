@@ -32,6 +32,12 @@ var usageHelp string
 var (
 	newPlayer       = playerctl.NewPlayer
 	newPlayerManger = playerctl.NewPlayerManager
+	selectPlayers   = selectInstances
+	renderCommand   = renderPlayerCommand
+	renderDump      = runDump
+	lookupURL       = playerURL
+	discoverPlayers = discoveredPlayerInstances
+	lookupStatus    = playerStatus
 )
 
 type stringSlice []string
@@ -245,7 +251,7 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		return runDaemon(remaining[1:], stdout, stderr)
 	}
 
-	instances := selectInstances(playerArg, ignoreArg, allPlayers, cmd == "url")
+	instances := selectPlayers(playerArg, ignoreArg, allPlayers, cmd == "url")
 	if len(instances) == 0 && cmd != "tui" {
 		fmt.Fprintln(stderr, "no players selected; use --player or --all-players")
 		return 2
@@ -307,87 +313,98 @@ func run(args []string, stdout, stderr io.Writer, ops ...any) int {
 		return runTUI(instances, stdout, stderr, opts)
 	}
 
-	var aggregateOutput strings.Builder
-	var outputWriter io.Writer = stdout
-	if opts.copyFlag {
-		outputWriter = io.MultiWriter(stdout, &aggregateOutput)
-	}
-
+	var rendered strings.Builder
+	code := 0
 	if cmd == "dump" {
-		code := runDump(instances, outputWriter, stderr, opts)
-		if opts.copyFlag && aggregateOutput.Len() > 0 {
-			if err := copyToClipboard(aggregateOutput.String()); err != nil {
-				fmt.Fprintf(stderr, "go-playerctl: failed to copy output to clipboard: %v\n", err)
-				return 1
-			}
-		}
-		return code
-	}
-
-	if cmd == "url" {
-		var foundUrl string
+		code = renderDump(instances, &rendered, stderr, opts)
+	} else if cmd == "url" {
+		code = renderURLs(instances, &rendered, stderr, allPlayers, len(playerArg) > 0)
+	} else {
+		cmdArgs := remaining[1:]
 		for _, instance := range instances {
-			p, err := newPlayer(instance, playerctl.SourceDBusSession)
-			if err != nil {
-				continue
-			}
-			meta, err := p.Metadata()
-			p.Close()
-			if err != nil {
-				continue
-			}
-			if v, ok := meta["xesam:url"]; ok && v.Value() != nil {
-				if urlStr, ok := v.Value().(string); ok && urlStr != "" {
-					foundUrl = urlStr
-					if !allPlayers {
-						instances = []string{instance}
-					}
+			commandCode := renderCommand(cmd, instance, &rendered, stderr, opts, cmdArgs)
+			if commandCode != 0 {
+				code = commandCode
+				if !allPlayers {
 					break
 				}
 			}
 		}
-
-		if foundUrl == "" {
-			if len(playerArg) > 0 {
-				fmt.Fprintln(stderr, "error: current media does not expose a valid media URL")
-			} else {
-				fmt.Fprintln(stderr, "go-playerctl: no MPRIS player exposes xesam:url")
-			}
-			return 1
-		}
 	}
 
-	for _, instance := range instances {
-		p, err := newPlayer(instance, playerctl.SourceDBusSession)
-		if err != nil {
-			fmt.Fprintf(stderr, "failed to connect player %q: %v\n", instance, err)
-			if !allPlayers {
-				return 1
-			}
-			continue
-		}
-		var cmdArgs []string
-		if len(remaining) > 1 {
-			cmdArgs = remaining[1:]
-		}
-
-		if code := runCommand(cmd, p, outputWriter, stderr, opts, cmdArgs); code != 0 {
-			p.Close()
-			if !allPlayers {
-				return code
-			}
-		}
-		p.Close()
+	_, _ = io.WriteString(stdout, rendered.String())
+	if code != 0 {
+		return code
 	}
-
-	if opts.copyFlag && aggregateOutput.Len() > 0 {
-		if err := copyToClipboard(aggregateOutput.String()); err != nil {
+	if opts.copyFlag {
+		if err := copyToClipboard(rendered.String()); err != nil {
 			fmt.Fprintf(stderr, "go-playerctl: failed to copy output to clipboard: %v\n", err)
 			return 1
 		}
 	}
 
 	return 0
+}
+
+func renderPlayerCommand(cmd, instance string, stdout, stderr io.Writer, opts cliOptions, args []string) int {
+	p, err := newPlayer(instance, playerctl.SourceDBusSession)
+	if err != nil {
+		fmt.Fprintf(stderr, "failed to connect player %q: %v\n", instance, err)
+		return 1
+	}
+	defer p.Close()
+	return runCommand(cmd, p, stdout, stderr, opts, args)
+}
+
+func playerURL(instance string) (string, error) {
+	p, err := newPlayer(instance, playerctl.SourceDBusSession)
+	if err != nil {
+		return "", err
+	}
+	defer p.Close()
+	meta, err := p.Metadata()
+	if err != nil {
+		return "", err
+	}
+	variant, ok := meta["xesam:url"]
+	if !ok || variant.Value() == nil {
+		return "", nil
+	}
+	url, _ := variant.Value().(string)
+	return url, nil
+}
+
+func renderURLs(instances []string, stdout, stderr io.Writer, allPlayers, explicit bool) int {
+	found := false
+	for _, instance := range instances {
+		url, err := lookupURL(instance)
+		if err != nil || url == "" {
+			if allPlayers {
+				if err != nil {
+					fmt.Fprintf(stderr, "failed to query URL for player %q: %v\n", instance, err)
+				} else {
+					fmt.Fprintf(stderr, "player %q does not expose xesam:url\n", instance)
+				}
+			}
+			continue
+		}
+		found = true
+		if allPlayers {
+			fmt.Fprintf(stdout, "%s %s\n", instance, url)
+			continue
+		}
+		fmt.Fprintln(stdout, url)
+		return 0
+	}
+	if found {
+		return 0
+	}
+	if explicit {
+		fmt.Fprintln(stderr, "error: selected player(s) do not expose xesam:url")
+	} else {
+		fmt.Fprintln(stderr, "go-playerctl: no MPRIS player exposes xesam:url")
+	}
+	return 1
 }
 
 type followExecutor interface {
@@ -486,30 +503,25 @@ func selectInstances(playerArg, ignoreArg []string, allPlayers bool, keepAllRank
 		return instances
 	}
 
-	manager, err := newPlayerManger(playerctl.SourceNone)
-	if err != nil {
-		return nil
-	}
-
 	type playerInfo struct {
 		instance string
 		status   playerctl.PlaybackStatus
 	}
 	var infos []playerInfo
 
-	for _, n := range manager.PlayerNames() {
-		if _, skip := ignore[n.Instance]; skip {
+	instances, err := discoverPlayers()
+	if err != nil {
+		return nil
+	}
+	for _, instance := range instances {
+		if _, skip := ignore[instance]; skip {
 			continue
 		}
-		p, err := newPlayer(n.Instance, playerctl.SourceDBusSession)
 		status := playerctl.PlaybackStatusStopped
-		if err == nil {
-			if s, err := p.PlaybackStatus(); err == nil {
-				status = s
-			}
-			p.Close()
+		if s, err := lookupStatus(instance); err == nil {
+			status = s
 		}
-		infos = append(infos, playerInfo{instance: n.Instance, status: status})
+		infos = append(infos, playerInfo{instance: instance, status: status})
 	}
 
 	sort.SliceStable(infos, func(i, j int) bool {
@@ -538,6 +550,27 @@ func selectInstances(playerArg, ignoreArg []string, allPlayers bool, keepAllRank
 	}
 
 	return nil
+}
+
+func discoveredPlayerInstances() ([]string, error) {
+	manager, err := newPlayerManger(playerctl.SourceNone)
+	if err != nil {
+		return nil, err
+	}
+	instances := make([]string, 0, len(manager.PlayerNames()))
+	for _, name := range manager.PlayerNames() {
+		instances = append(instances, name.Instance)
+	}
+	return instances, nil
+}
+
+func playerStatus(instance string) (playerctl.PlaybackStatus, error) {
+	p, err := newPlayer(instance, playerctl.SourceDBusSession)
+	if err != nil {
+		return playerctl.PlaybackStatusStopped, err
+	}
+	defer p.Close()
+	return p.PlaybackStatus()
 }
 
 func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, error) {
@@ -839,21 +872,10 @@ func runCommand(cmd string, p *playerctl.Player, stdout, stderr io.Writer, opts 
 		}
 
 		write(line)
-	case "status", "metadata", "url":
-		isUrlCmd := cmd == "url"
-		queryCmd := cmd
-		if isUrlCmd {
-			queryCmd = "metadata"
-			opts.args = []string{"xesam:url"}
-		}
-		line, err := queryOutput(queryCmd, p, opts)
+	case "status", "metadata":
+		line, err := queryOutput(cmd, p, opts)
 		if err != nil {
 			fmt.Fprintln(stderr, err)
-			return 1
-		}
-		if isUrlCmd && line == "" {
-			// This shouldn't happen because of the loop earlier, but in case it does.
-			fmt.Fprintln(stderr, "error: current media does not expose a valid media URL")
 			return 1
 		}
 		write(line)

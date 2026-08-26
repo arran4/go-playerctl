@@ -6,11 +6,11 @@ type clipboardCopier interface {
 	Copy(text string) error
 }
 
-var defaultClipboardCopier clipboardCopier
+var defaultClipboardCopier clipboardCopier = newPlatformClipboardCopier()
 
 func copyToClipboard(text string) error {
-	if defaultClipboardCopier != nil {
-		return defaultClipboardCopier.Copy(text)
+	if defaultClipboardCopier == nil {
+		return errors.New("clipboard copier is not initialized")
 	}
-	return errors.New("clipboard copying is not implemented or initialized on this platform")
+	return defaultClipboardCopier.Copy(text)
 }
