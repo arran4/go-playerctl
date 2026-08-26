@@ -11,6 +11,13 @@ import (
 	"golang.design/x/clipboard"
 )
 
+func handleInternalClipboardOwner(args []string) (bool, int) {
+	if len(args) > 0 && args[0] == "--internal-clipboard-owner" {
+		return true, runClipboardOwner()
+	}
+	return false, 0
+}
+
 // runClipboardOwner is the entry point for the internal clipboard daemon.
 // It reads the payload from stdin, initializes the clipboard, writes it,
 // sends "READY" or "ERROR" to the status pipe (fd 3), and then blocks until overwritten.
