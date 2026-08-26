@@ -14,7 +14,7 @@ import (
 // runClipboardOwner is the entry point for the internal clipboard daemon.
 // It reads the payload from stdin, initializes the clipboard, writes it,
 // sends "READY" or "ERROR" to the status pipe (fd 3), and then blocks until overwritten.
-func handleInternalClipboardOwner() int {
+func runClipboardOwner() int {
 	// Status pipe is passed as ExtraFiles[0], which is fd 3
 	statusFile := os.NewFile(3, "status_pipe")
 	if statusFile == nil {

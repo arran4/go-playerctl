@@ -88,8 +88,8 @@ func printUsageHelp(stdout io.Writer) {
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "--internal-clipboard-owner" {
-		os.Exit(handleInternalClipboardOwner())
+	if handled, code := handleInternalClipboardOwner(os.Args[1:]); handled {
+		os.Exit(code)
 	}
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
