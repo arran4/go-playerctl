@@ -622,6 +622,11 @@ func queryOutput(cmd string, p *playerctl.Player, opts cliOptions) (string, erro
 	}
 
 	// Always populate properties for templates if possible, ignoring errors
+	if _, ok := ctx["status"]; !ok {
+		if status, err := p.PlaybackStatus(); err == nil {
+			ctx["status"] = status.String()
+		}
+	}
 	if loopStatus, err := p.LoopStatus(); err == nil {
 		ctx["loopStatus"] = loopStatus.String()
 	}
