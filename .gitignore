@@ -8,4 +8,4 @@ tags
 *.swn
 *.snap
 /env
-goplayerctl
+/goplayerctl

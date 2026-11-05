@@ -80,8 +80,14 @@ goplayerctl --all-players --format '{{ .player }}: {{ default .title "(none)" }}
 # query metadata for a player showing artist, album, and title
 goplayerctl --player spotify --format '{{ default .artist "Unknown Artist" }} - {{ default .album "Unknown Album" }} - {{ default .title "Unknown Title" }}' metadata
 
+# query metadata and playback status together
+goplayerctl --player spotify --format '{{ .artist }} - {{ .title }} [{{ .status }}]' metadata
+
 # follow status changes
 goplayerctl --player spotify --follow status
+
+# follow metadata and playback status changes
+goplayerctl --player spotify --follow --format '{{ .artist }} - {{ .title }} | {{ .status }}' metadata
 
 # print active playlist details via template
 goplayerctl --format 'Active Playlist: {{ .activePlaylistName }} ({{ .playlistCount }} total)' metadata
