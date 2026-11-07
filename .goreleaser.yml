@@ -25,6 +25,7 @@ archives:
       - README.md
       - COPYING
       - doc/playerctl-go.1.md
+      - doc/goplayerctl.1
       - data/goplayerctl.bash
       - data/goplayerctl.zsh
 
