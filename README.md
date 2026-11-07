@@ -238,6 +238,10 @@ goplayerctl --format '{{ if has_tracklist .trackCount }}Tracks:\n{{ range .track
 
 - API Reference: [pkg.go.dev/github.com/arran4/go-playerctl](https://pkg.go.dev/github.com/arran4/go-playerctl)
 - Man page source: `doc/playerctl-go.1.md`
+- Preformatted manual (included in release archives): `doc/goplayerctl.1`.
+  Distributions can install it as `goplayerctl.1` or rename it to match a
+  packaged executable (for example, Gentoo's `go-playerctl.1`).
+  `go install` only installs the executable; it does not install man pages.
 
 ## Development
 
